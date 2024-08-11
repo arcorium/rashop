@@ -76,18 +76,11 @@ func (e *EventBase) Key() string {
 }
 
 func (e *EventBase) Metadata() Metadata {
-  md := Metadata{
+  return Metadata{
     NewKeyVal(METADATA_IDENTITY_KEY, e.id),
+    NewKeyVal(METADATA_VERSION_KEY, strconv.Itoa(int(e.EventVersion()))),
+    NewKeyVal(METADATA_EVENT_TYPE_KEY, string(e.EvenType())),
   }
-  // Exclude no versioning
-  if e.EventVersion() > 0 {
-    md = append(md, NewKeyVal(METADATA_VERSION_KEY, strconv.Itoa(int(e.EventVersion()))))
-  }
-  // Exclude no event typing
-  if e.EvenType() != EventTypeUnknown {
-    md = append(md, NewKeyVal(METADATA_EVENT_TYPE_KEY, string(e.EvenType())))
-  }
-  return md
 }
 
 func NewDomainEvent(options ...EventOption) DomainEventBase {

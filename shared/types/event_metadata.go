@@ -20,7 +20,7 @@ type Record = KeyVal[string, string]
 type Metadata []Record
 
 func (m Metadata) ToKafkaRecordHeader() []sarama.RecordHeader {
-  result := make([]sarama.RecordHeader, len(m))
+  result := make([]sarama.RecordHeader, 0, len(m))
   for _, record := range m {
     result = append(result, sarama.RecordHeader{
       Key:   []byte(record.Key),

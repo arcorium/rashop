@@ -4,7 +4,6 @@ import sharedConf "github.com/arcorium/rashop/shared/config"
 
 type Database struct {
   sharedConf.PostgresDatabase
-  Broker MessageBroker
 }
 
 type MessageBroker struct {

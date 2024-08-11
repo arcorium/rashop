@@ -47,10 +47,9 @@ import (
   "syscall"
 )
 
-func NewServer(dbConfig *config.Database, serverConfig *config.Server) (*Server, error) {
+func NewServer(serverConfig *config.QueryServer) (*Server, error) {
   svr := &Server{
-    dbConfig:     dbConfig,
-    serverConfig: serverConfig,
+    config: serverConfig,
   }
 
   err := svr.setup()
@@ -58,10 +57,9 @@ func NewServer(dbConfig *config.Database, serverConfig *config.Server) (*Server,
 }
 
 type Server struct {
-  dbConfig     *config.Database
-  serverConfig *config.Server
-  db           *bun.DB
-  consumer     sarama.ConsumerGroup // It should be sarama.Consumer, because each instance should handle it all
+  config   *config.QueryServer
+  db       *bun.DB
+  consumer sarama.ConsumerGroup // It should be sarama.Consumer, because each instance should handle it all
 
   grpcServer     *grpc.Server
   metricServer   *http.Server
@@ -93,7 +91,7 @@ func (s *Server) setupOtel() (*promProv.ServerMetrics, *prometheus.Registry, err
   // Exporter
   s.exporter, err = otlptracegrpc.New(context.Background(),
     otlptracegrpc.WithInsecure(),
-    otlptracegrpc.WithEndpoint(s.serverConfig.OTLPGRPCCollectorAddress),
+    otlptracegrpc.WithEndpoint(s.config.OTLPGRPCCollectorAddress),
   )
   if err != nil {
     return nil, nil, err
@@ -168,7 +166,7 @@ func (s *Server) grpcServerSetup() error {
     EnableOpenMetrics: true,
   }))
 
-  s.metricServer = &http.Server{Handler: mux, Addr: s.serverConfig.MetricAddress()}
+  s.metricServer = &http.Server{Handler: mux, Addr: s.config.MetricAddress()}
 
   return nil
 }
@@ -176,7 +174,7 @@ func (s *Server) grpcServerSetup() error {
 func (s *Server) databaseSetup() error {
   // Database
   var err error
-  s.db, err = database.OpenPostgresWithConfig(&s.dbConfig.PostgresDatabase, sharedConf.IsDebug())
+  s.db, err = database.OpenPostgresWithConfig(&s.config.PostgresDatabase, sharedConf.IsDebug())
   if err != nil {
     return err
   }
@@ -191,31 +189,31 @@ func (s *Server) databaseSetup() error {
 
 func (s *Server) createKafkaConfig() (*sarama.Config, error) {
   conf := sarama.NewConfig()
-  if s.dbConfig.Broker.KafkaVersion != "" {
+  if s.config.KafkaVersion != "" {
     var err error
-    conf.Version, err = sarama.ParseKafkaVersion(s.dbConfig.Broker.KafkaVersion)
+    conf.Version, err = sarama.ParseKafkaVersion(s.config.KafkaVersion)
     if err != nil {
       return nil, err
     }
+  } else {
+    conf.Version = constant.DefaultKafkaVersion
   }
   conf.Producer.RequiredAcks = sarama.WaitForAll
   conf.Producer.Return.Successes = true
   return conf, nil
 }
 
-func (s *Server) consumerSetup(queryConsumer service.ICustomerQueryConsumer) error {
+func (s *Server) consumerSetup() error {
   consumerCfg, err := s.createKafkaConfig()
   if err != nil {
     return err
   }
 
-  group, err := sarama.NewConsumerGroup(s.dbConfig.Broker.Addresses, s.dbConfig.Broker.GroupId, consumerCfg)
+  group, err := sarama.NewConsumerGroup(s.config.Addresses, s.config.GroupId, consumerCfg)
   if err != nil {
     return err
   }
 
-  queryConsumerHandler := dispatcher.NewQueryConsumerGroup(1000, consumer.NewCustomerQueryHandler(queryConsumer), serde.JsonAnyDeserializer{})
-  err = group.Consume(context.Background(), constant.CustomerQuerySubscribedDomainEvent, queryConsumerHandler)
   s.consumer = group
   return err
 }
@@ -244,11 +242,15 @@ func (s *Server) setup() error {
   querySvc := service.NewCustomerQuery(queryConfig)
 
   // Handler
+  customerQueryHandler := consumer.NewCustomerQueryHandler(queryConsumerSvc)
   // Consumer
-  err := s.consumerSetup(queryConsumerSvc)
+  err := s.consumerSetup()
   if err != nil {
     return err
   }
+  consumerDispatcher := dispatcher.NewQueryConsumerGroup(100, customerQueryHandler, serde.JsonAnyDeserializer{})
+  dispatcher.RunQueryConsumerGroup(s.consumer, consumerDispatcher, constant.CustomerQuerySubscribedDomainEvent...)
+
   // gRPC
   queryHandler := handler.NewCustomerQuery(querySvc)
   queryHandler.Register(s.grpcServer)
@@ -289,11 +291,11 @@ func (s *Server) shutdown() {
     logger.Warn(err.Error())
   }
 
-  logger.Info("Server Stopped!")
+  logger.Info("QueryServer Stopped!")
 }
 
 func (s *Server) Run() error {
-  listener, err := net.Listen("tcp", s.serverConfig.Address())
+  listener, err := net.Listen("tcp", s.config.Address())
   if err != nil {
     return err
   }
@@ -303,24 +305,24 @@ func (s *Server) Run() error {
     s.wg.Add(1)
     defer s.wg.Done()
 
-    logger.Infof("Server Listening on %s", s.serverConfig.Address())
+    logger.Infof("%s listening on %s", constant.SERVICE_QUERY_NAME, s.config.Address())
 
     err = s.grpcServer.Serve(listener)
-    logger.Info("Server Stopping ")
+    logger.Infof("%s stopping", constant.SERVICE_QUERY_NAME)
     if err != nil && !errors.Is(err, http.ErrServerClosed) {
-      logger.Warnf("Server failed to serve: %s", err)
+      logger.Warnf("%s failed to serve: %s", constant.SERVICE_QUERY_NAME, err)
     }
   }()
 
   go func() {
     s.wg.Add(1)
     defer s.wg.Done()
-    logger.Infof("Metrics Server Listening on %s", s.serverConfig.MetricAddress())
+    logger.Infof("Metrics %s listening on %s", constant.SERVICE_QUERY_NAME, s.config.MetricAddress())
 
     err = s.metricServer.ListenAndServe()
-    logger.Info("Metrics Server Stopping")
+    logger.Infof("Metrics %s stopping", constant.SERVICE_QUERY_NAME)
     if err != nil && !errors.Is(err, http.ErrServerClosed) {
-      logger.Warnf("Server failed to serve: %s", err)
+      logger.Warnf("%s failed to serve: %s", constant.SERVICE_QUERY_NAME, err)
     }
   }()
 

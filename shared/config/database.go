@@ -13,10 +13,10 @@ func LoadDatabase() (*Database, error) {
 type Connection struct {
   Timeout time.Duration `env:"DB_TIMEOUT" envDefault:"60s"`
 
-  MaxOpen     uint64        `env:"DB_MAX_OPEN" envDefault:"0"`      // Max opened connections
-  MaxIdle     uint64        `env:"DB_MAX_IDLE" envDefault:"2"`      // Max idle connection on pool
-  MaxIdleTime time.Duration `env:"DB_MAX_IDLE_TIME" envDefault:"0"` // Maximum idle time for connection before closed
-  Lifetime    time.Duration `env:"DB_LIFETIME" envDefault:"0"`      // Lifetime for each connection
+  MaxOpen     uint64        `env:"DB_CONN_MAX_OPEN" envDefault:"0"`      // Max opened connections
+  MaxIdle     uint64        `env:"DB_CONN_MAX_IDLE" envDefault:"2"`      // Max idle connection on pool
+  MaxIdleTime time.Duration `env:"DB_CONN_MAX_IDLE_TIME" envDefault:"0"` // Maximum idle time for connection before closed
+  Lifetime    time.Duration `env:"DB_CONN_LIFETIME" envDefault:"0"`      // Lifetime for each connection
 }
 
 type Database struct {

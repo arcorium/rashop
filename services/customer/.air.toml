@@ -1,4 +1,0 @@
-[build]
-cmd = "go build -o ./tmp/main ./cmd/command_server"
-send_interrupt = true
-rerun = true

@@ -35,7 +35,7 @@ func (c *customerRepository) Create(ctx context.Context, customer *entity.Custom
   err := c.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
     // Insert the user
     res, err := c.db.NewInsert().
-      Model(&dbModel.User).
+      Model(dbModel.User).
       Returning("NULL").
       Exec(ctx)
     err = repo.CheckResult(res, err)

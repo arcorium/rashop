@@ -55,7 +55,7 @@ type Customer struct {
   UserId                   string `bun:",type:uuid,nullzero,pk"`
   FirstName                string `bun:",nullzero,notnull"`
   LastName                 string `bun:","`
-  PhotoId                  string `bun:",type:uuid"`
+  PhotoId                  string `bun:",type:uuid,nullzero"`
   Balance                  uint64 `bun:",default:0"`
   Point                    uint64 `bun:",default:0"`
   DefaultShippingAddressId string `bun:"default_sa_id,type:uuid,nullzero"`

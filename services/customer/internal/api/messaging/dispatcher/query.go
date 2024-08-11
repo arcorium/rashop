@@ -22,6 +22,24 @@ var (
   ErrUnexpectedVersion = errors.New("event has unexpected version")
 )
 
+func RunQueryConsumerGroup(group sarama.ConsumerGroup, handler sarama.ConsumerGroupHandler, topics ...string) {
+  ctx := context.Background()
+  go func() {
+    for {
+      err := group.Consume(ctx, topics, handler)
+
+      if err != nil {
+        if ctx.Err() != nil {
+          return
+        }
+        logger.Infof("Failed to consume message from topic %s: %v", topics, err)
+      }
+      logger.Infof("Successfully consumed message from topic %s", topics)
+    }
+  }()
+
+}
+
 func NewQueryConsumerGroup(errBufferLimit int, customerConsumer consumer.ICustomerQueryHandler, deserializer serde.IDeserializerAny) sarama.ConsumerGroupHandler {
   return otelsarama.WrapConsumerGroupHandler(&QueryConsumerGroupHandler{
     handler:        customerConsumer,
@@ -106,7 +124,10 @@ func (q *QueryConsumerGroupHandler) sendError(id, eventName string, err error) {
 }
 
 func (q *QueryConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
+  // TODO: Delete concurrency, because sarama already handle each topic on its own goorutine
+  logger.Infof("Start consuming")
   for message := range claim.Messages() {
+    logger.Infof("Got Message")
     // Parse header
     md := types.NewEventMetadata(message.Headers, types.FromKafkaRecords())
     ctx := util.ExtractOTEL(md, message)
@@ -151,7 +172,7 @@ func (q *QueryConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSes
 
 func deserializeMessage[T types.Event](deser serde.IDeserializerAny, message *sarama.ConsumerMessage, base T) error {
   // Parse value
-  err := deser.Deserialize(message.Value, base)
+  err := deser.Deserialize(message.Value, &base)
   return err
 }
 
@@ -168,6 +189,8 @@ func dispatcherHandlerV1[E types.Event](q *QueryConsumerGroupHandler, ctx contex
     q.sendError(md.Id, ev.EventName(), err)
     return
   }
+
+  logger.Infof("Deserialized Event: %+v", ev)
 
   // Deserialize event
   err := deserializeMessage[E](q.deserializer, message, ev)

@@ -1,0 +1,13 @@
+[build]
+cmd = "GOFLAGS=-buildvcs=false go build -o ./tmp/query_server ./cmd/query_server"
+bin = "tmp/query_server"
+include_ext = ["env", "go", "mod", "sum", "tpl", "tmpl"]
+exclude_dir = ["docker", "cmd/command_server", "test"]
+send_interrupt = true
+#rerun = true
+rerun_delay = 1000
+stop_on_error = true
+
+[misc]
+# Delete tmp directory on exit
+clean_on_exit = true

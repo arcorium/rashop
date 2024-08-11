@@ -16,12 +16,7 @@ func main() {
   err := env.LoadEnvs(filename)
 
   // Config
-  dbConfig, err := sharedConf.Load[config.Database]()
-  if err != nil {
-    env.LogError(err, -1)
-  }
-
-  serverConfig, err := sharedConf.Load[config.Server]()
+  serverConfig, err := sharedConf.Load[config.CommandServer]()
   if err != nil {
     env.LogError(err, -1)
   }
@@ -33,7 +28,7 @@ func main() {
   }
   logger.SetGlobal(logg)
 
-  server, err := NewServer(dbConfig, serverConfig)
+  server, err := NewServer(serverConfig)
   if err != nil {
     log.Fatalln(err)
   }

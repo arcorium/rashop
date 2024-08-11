@@ -48,9 +48,8 @@ import (
   "syscall"
 )
 
-func NewServer(dbConfig *config.Database, serverConfig *config.Server) (*Server, error) {
+func NewServer(serverConfig *config.CommandServer) (*Server, error) {
   svr := &Server{
-    dbConfig:     dbConfig,
     serverConfig: serverConfig,
   }
 
@@ -59,8 +58,7 @@ func NewServer(dbConfig *config.Database, serverConfig *config.Server) (*Server,
 }
 
 type Server struct {
-  dbConfig     *config.Database
-  serverConfig *config.Server
+  serverConfig *config.CommandServer
   db           *bun.DB
   producer     sarama.SyncProducer
   //consumer     sarama.ConsumerGroup TODO: Needed later to handle integration event
@@ -178,7 +176,7 @@ func (s *Server) grpcServerSetup() error {
 func (s *Server) databaseSetup() error {
   // Database
   var err error
-  s.db, err = database.OpenPostgresWithConfig(&s.dbConfig.PostgresDatabase, sharedConf.IsDebug())
+  s.db, err = database.OpenPostgresWithConfig(&s.serverConfig.PostgresDatabase, sharedConf.IsDebug())
   if err != nil {
     return err
   }
@@ -193,12 +191,14 @@ func (s *Server) databaseSetup() error {
 
 func (s *Server) createKafkaConfig() (*sarama.Config, error) {
   conf := sarama.NewConfig()
-  if s.dbConfig.Broker.KafkaVersion != "" {
+  if s.serverConfig.KafkaVersion != "" {
     var err error
-    conf.Version, err = sarama.ParseKafkaVersion(s.dbConfig.Broker.KafkaVersion)
+    conf.Version, err = sarama.ParseKafkaVersion(s.serverConfig.KafkaVersion)
     if err != nil {
       return nil, err
     }
+  } else {
+    conf.Version = constant.DefaultKafkaVersion
   }
   conf.Producer.RequiredAcks = sarama.WaitForAll
   conf.Producer.Return.Successes = true
@@ -211,7 +211,7 @@ func (s *Server) publisherSetup() error {
     return err
   }
 
-  producer, err := sarama.NewSyncProducer(s.dbConfig.Broker.Addresses, producerCfg)
+  producer, err := sarama.NewSyncProducer(s.serverConfig.Addresses, producerCfg)
   if err != nil {
     return err
   }
@@ -288,7 +288,7 @@ func (s *Server) shutdown() {
     logger.Warn(err.Error())
   }
 
-  logger.Info("Server Stopped!")
+  logger.Info("QueryServer Stopped!")
 }
 
 func (s *Server) Run() error {
@@ -302,24 +302,24 @@ func (s *Server) Run() error {
     s.wg.Add(1)
     defer s.wg.Done()
 
-    logger.Infof("Server Listening on %s", s.serverConfig.Address())
+    logger.Infof("%s listening on %s", constant.SERVICE_COMMAND_NAME, s.serverConfig.Address())
 
     err = s.grpcServer.Serve(listener)
-    logger.Info("Server Stopping ")
+    logger.Infof("%s stopping", constant.SERVICE_COMMAND_NAME)
     if err != nil && !errors.Is(err, http.ErrServerClosed) {
-      logger.Warnf("Server failed to serve: %s", err)
+      logger.Warnf("%s failed to serve: %s", constant.SERVICE_COMMAND_NAME, err)
     }
   }()
 
   go func() {
     s.wg.Add(1)
     defer s.wg.Done()
-    logger.Infof("Metrics Server Listening on %s", s.serverConfig.MetricAddress())
+    logger.Infof("Metrics %s listening on %s", constant.SERVICE_COMMAND_NAME, s.serverConfig.MetricAddress())
 
     err = s.metricServer.ListenAndServe()
-    logger.Info("Metrics Server Stopping")
+    logger.Infof("Metrics %s stopping", constant.SERVICE_COMMAND_NAME)
     if err != nil && !errors.Is(err, http.ErrServerClosed) {
-      logger.Warnf("Server failed to serve: %s", err)
+      logger.Warnf("%s failed to serve: %s", constant.SERVICE_COMMAND_NAME, err)
     }
   }()
 

@@ -2,6 +2,8 @@ package config
 
 import sharedConf "github.com/arcorium/rashop/shared/config"
 
-type Server struct {
+type QueryServer struct {
   sharedConf.Server
+  Database
+  MessageBroker
 }
