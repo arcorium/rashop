@@ -1,0 +1,14 @@
+syntax = "proto3";
+package rashop.customer.v1;
+option go_package = "rashop/proto/gen/go/customer/v1";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "customer/v1/message_query.proto";
+
+service CustomerQueryService {
+  rpc FindByIds(FindCustomerByIdsRequest) returns (FindCustomerByIdsResponse);
+  rpc FindAddresses(FindCustomerAddressesRequest) returns (FindCustomerAddressesResponse);
+  rpc FindVouchers(FindCustomerVouchersRequest) returns (FindCustomerVouchersResponse);
+}

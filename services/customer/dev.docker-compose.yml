@@ -1,0 +1,16 @@
+
+services:
+  my-project-with-air:
+    image: cosmtrek/air
+    # working_dir value has to be the same of mapped volume
+    working_dir: /mini-shop/services/customer
+    environment:
+      - ENV_A=${ENV_A}
+      - ENV_B=${ENV_B}
+      - ENV_C=${ENV_C}
+    volumes:
+      - ../../:/mini-shop/
+      - ignore:/mini-shop/.git
+
+volumes:
+  ignore:

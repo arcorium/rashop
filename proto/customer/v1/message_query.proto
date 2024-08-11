@@ -1,0 +1,29 @@
+syntax = "proto3";
+package rashop.customer.v1;
+option go_package = "rashop/proto/gen/go/customer/v1";
+
+import "customer/v1/customer_message.proto";
+
+message FindCustomerByIdsRequest {
+  repeated string customer_ids = 1;
+}
+
+message FindCustomerByIdsResponse {
+  repeated Customer customers = 1;
+}
+
+message FindCustomerAddressesRequest {
+  string customer_id = 1;
+}
+
+message FindCustomerAddressesResponse {
+  repeated Address addresses = 1;
+}
+
+message FindCustomerVouchersRequest {
+  string customer_id = 1;
+}
+
+message FindCustomerVouchersResponse {
+  repeated Voucher vouchers = 1;
+}

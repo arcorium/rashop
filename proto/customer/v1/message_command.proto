@@ -1,0 +1,159 @@
+syntax = "proto3";
+package rashop.customer.v1;
+option go_package = "rashop/proto/gen/go/customer/v1";
+
+import "customer/v1/customer_message.proto";
+
+message AddCustomerAddressRequest {
+  string customer_id = 1;
+  string street_address_1 = 2;
+  optional string street_address_2 = 3;
+  string city = 4;
+  string state = 5;
+  uint32 postal_code = 6;
+}
+
+message AddCustomerAddressResponse {
+  string address_id = 1;
+}
+
+message AddCustomerVoucherRequest {
+  string customer_id = 1;
+  string voucher_id = 2;
+}
+
+message AddCustomerVoucherResponse {}
+
+message CreateCustomerRequest {
+  string username = 1;
+  string first_name = 2;
+  optional string last_name = 3;
+  string email = 4;
+  string password = 5;
+}
+
+message CreateCustomerResponse {
+  string customer_id = 1;
+}
+
+
+message DeleteCustomerAddressRequest {
+  string customer_id = 1;
+  string address_id = 2;
+}
+
+message DeleteCustomerAddressResponse {}
+
+message DeleteCustomerVoucherRequest {
+  string customer_id = 1;
+  string voucher_id = 2;
+}
+
+message DeleteCustomerVoucherResponse {}
+
+message DisableCustomerRequest {
+  string customer_id = 1;
+}
+
+message DisableCustomerResponse {}
+
+message EnableCustomerRequest {
+  string customer_id = 1;
+}
+
+message EnableCustomerResponse {}
+
+message ForgotCustomerPasswordRequest {
+  string email = 1;
+}
+
+message ForgotCustomerPasswordResponse {}
+
+message ResetCustomerPasswordRequest {
+  string token = 1;
+  bool logout_all = 2;
+  string new_password = 3;
+}
+
+message ResetCustomerPasswordResponse {}
+
+message UpdateCustomerPasswordRequest {
+  string customer_id = 1;
+  string last_password = 2;
+  string new_password = 3;
+}
+
+message UpdateCustomerPasswordResponse {}
+
+message SetCustomerDefaultAddressRequest {
+  string customer_id = 1;
+  string address_id = 2;
+}
+
+message SetCustomerDefaultAddressResponse {}
+
+message UpdateCustomerAddressRequest {
+  string customer_id = 1;
+  string address_id = 2;
+  optional string street_address_1 = 3;
+  optional string street_address_2 = 4;
+  optional string city = 5;
+  optional string state = 6;
+  optional uint32 postal_code = 7;
+}
+
+message UpdateCustomerAddressResponse {}
+
+message UpdateCustomerRequest {
+  string customer_id = 1;
+  optional string username = 2;
+  optional string first_name = 3;
+  optional string last_name = 4;
+  optional string email = 5;
+}
+
+message UpdateCustomerResponse {}
+
+message SetCustomerBalanceRequest {
+  string customer_id = 1;
+  uint64 balance = 2;
+  uint64 point = 3;
+}
+
+message SetCustomerBalanceResponse {}
+
+message ModifyCustomerBalanceRequest {
+  string customer_id = 1;
+  int64 balance = 2;
+  int64 point = 3;
+}
+
+message ModifyCustomerBalanceResponse{}
+
+
+message UpdateCustomerPhotoRequest {
+  string customer_id = 1;
+  string media_id = 2;
+}
+
+message UpdateCustomerPhotoResponse {}
+
+message UpdateCustomerVoucherRequest {
+  string customer_id = 1;
+  string voucher_id = 2;
+  bool is_being_used = 3;
+}
+
+message UpdateCustomerVoucherResponse {}
+
+message VerifyCustomerEmailInstantiateRequest {
+  string customer_id = 1;
+}
+
+message VerifyCustomerEmailInstantiateResponse {}
+
+message VerifyCustomerEmailRequest {
+  string token = 1;
+}
+
+message VerifyCustomerEmailResponse {}

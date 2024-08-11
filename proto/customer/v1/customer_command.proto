@@ -1,0 +1,30 @@
+syntax = "proto3";
+package rashop.customer.v1;
+option go_package = "rashop/proto/gen/go/customer/v1";
+
+import "google/protobuf/duration.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "customer/v1/message_command.proto";
+
+service CustomerCommandService {
+  rpc AddAddress(AddCustomerAddressRequest) returns (AddCustomerAddressResponse);
+  rpc AddVoucher(AddCustomerVoucherRequest) returns (AddCustomerVoucherResponse);
+  rpc Create(CreateCustomerRequest) returns (CreateCustomerResponse);
+  rpc DeleteAddress(DeleteCustomerAddressRequest) returns (DeleteCustomerAddressResponse);
+  rpc DeleteVoucher(DeleteCustomerVoucherRequest) returns (DeleteCustomerVoucherResponse);
+  rpc Disable(DisableCustomerRequest) returns (DisableCustomerResponse);
+  rpc Enable(EnableCustomerRequest) returns (EnableCustomerResponse);
+  rpc ForgotPasswordInstantiate(ForgotCustomerPasswordRequest) returns (ForgotCustomerPasswordResponse);
+  rpc ResetPassword(ResetCustomerPasswordRequest) returns (ResetCustomerPasswordResponse);
+  rpc SetDefaultAddress(SetCustomerDefaultAddressRequest) returns (SetCustomerDefaultAddressResponse);
+  rpc UpdateAddress(UpdateCustomerAddressRequest) returns (UpdateCustomerAddressResponse);
+  rpc SetBalance(SetCustomerBalanceRequest) returns (SetCustomerBalanceResponse);
+  rpc ModifyBalance(ModifyCustomerBalanceRequest) returns (ModifyCustomerBalanceResponse);
+  rpc Update(UpdateCustomerRequest) returns (UpdateCustomerResponse);
+  rpc UpdatePassword(UpdateCustomerPasswordRequest) returns (UpdateCustomerPasswordResponse);
+  rpc UpdatePhoto(UpdateCustomerPhotoRequest) returns (UpdateCustomerPhotoResponse);
+  rpc UpdateVoucher(UpdateCustomerVoucherRequest) returns (UpdateCustomerVoucherResponse);
+  rpc VerifyEmail(VerifyCustomerEmailRequest) returns (VerifyCustomerEmailResponse);
+  rpc VerifyEmailInstantiate(VerifyCustomerEmailInstantiateRequest) returns (VerifyCustomerEmailInstantiateResponse);
+}

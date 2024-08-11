@@ -1,0 +1,15 @@
+syntax = "proto3";
+package rashop.common;
+option go_package = "rashop/proto/gen/go/common";
+
+message PagedElementRequest {
+  uint64 element = 1;
+  uint64 page = 2;
+}
+
+message PagedElementResponseDetail {
+  uint64 element = 1;
+  uint64 page = 2;
+  uint64 total_elements = 3;
+  uint64 total_pages = 4;
+}
