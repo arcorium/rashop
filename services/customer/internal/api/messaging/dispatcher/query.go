@@ -3,30 +3,61 @@ package dispatcher
 import (
   "context"
   "errors"
+  "fmt"
   "github.com/IBM/sarama"
   sharedErr "github.com/arcorium/rashop/shared/errors"
   "github.com/arcorium/rashop/shared/interfaces/handler"
   "github.com/arcorium/rashop/shared/logger"
+  "github.com/arcorium/rashop/shared/messaging"
   "github.com/arcorium/rashop/shared/serde"
   "github.com/arcorium/rashop/shared/types"
+  "github.com/avast/retry-go"
   "github.com/dnwe/otelsarama"
   "mini-shop/services/user/internal/api/messaging/consumer"
   "mini-shop/services/user/internal/domain/event"
   "mini-shop/services/user/pkg/util"
   "strconv"
-  "sync"
-  "sync/atomic"
+  "time"
 )
 
 var (
   ErrUnexpectedVersion = errors.New("event has unexpected version")
 )
 
-func RunQueryConsumerGroup(group sarama.ConsumerGroup, handler sarama.ConsumerGroupHandler, topics ...string) {
-  ctx := context.Background()
+const (
+  maxSerializedMessageBuffer = 100
+)
+
+func NewQueryConsumerGroup(dlqPublisher messaging.IForwarder[*sarama.ConsumerMessage], customerConsumer consumer.ICustomerQueryHandler, deserializer serde.IDeserializerAny) *QueryConsumerGroupHandler {
+  return &QueryConsumerGroupHandler{
+    handler:      customerConsumer,
+    deserializer: deserializer,
+    errors:       make(chan errorMessage, maxSerializedMessageBuffer),
+    dlqPublisher: dlqPublisher,
+  }
+}
+
+type errorMessage struct {
+  id      string
+  event   string
+  message *sarama.ConsumerMessage
+  error   error
+}
+
+type QueryConsumerGroupHandler struct {
+  handler      consumer.ICustomerQueryHandler
+  deserializer serde.IDeserializerAny
+
+  errors       chan errorMessage
+  dlqPublisher messaging.IForwarder[*sarama.ConsumerMessage]
+}
+
+// Run as async
+func (q *QueryConsumerGroupHandler) Run(ctx context.Context, group sarama.ConsumerGroup, topics ...string) {
   go func() {
+    groupHandler := otelsarama.WrapConsumerGroupHandler(q)
     for {
-      err := group.Consume(ctx, topics, handler)
+      err := group.Consume(ctx, topics, groupHandler)
 
       if err != nil {
         if ctx.Err() != nil {
@@ -37,132 +68,97 @@ func RunQueryConsumerGroup(group sarama.ConsumerGroup, handler sarama.ConsumerGr
       logger.Infof("Successfully consumed message from topic %s", topics)
     }
   }()
-
-}
-
-func NewQueryConsumerGroup(errBufferLimit int, customerConsumer consumer.ICustomerQueryHandler, deserializer serde.IDeserializerAny) sarama.ConsumerGroupHandler {
-  return otelsarama.WrapConsumerGroupHandler(&QueryConsumerGroupHandler{
-    handler:        customerConsumer,
-    deserializer:   deserializer,
-    concurrentLock: sync.RWMutex{},
-    concurrent:     make(map[string]*sync.Mutex),
-    errors:         make(chan errorMessage, errBufferLimit),
-    exitChan:       make(chan struct{}),
-  })
-}
-
-type errorMessage struct {
-  MessageId string
-  EventName string
-  Error     error
-}
-
-type QueryConsumerGroupHandler struct {
-  handler      consumer.ICustomerQueryHandler
-  deserializer serde.IDeserializerAny
-
-  concurrentLock sync.RWMutex
-  concurrent     map[string]*sync.Mutex // Concurrent access per aggregate
-  errors         chan errorMessage
-  exitChan       chan struct{}
 }
 
 func (q *QueryConsumerGroupHandler) Setup(session sarama.ConsumerGroupSession) error {
-  // Run goroutine to handle error
   go q.errorHandler()
   return nil
 }
 
-func (q *QueryConsumerGroupHandler) errorHandler() {
-  var shouldExit atomic.Bool
-
-out:
-  for {
-    select {
-    case <-q.exitChan:
-      if len(q.errors) == 0 {
-        break
-      }
-      shouldExit.Store(true)
-      // Wait until all errors processed
-      continue
-    case err := <-q.errors:
-      // Process
-      logger.Infof("Failed to process message %s [%s]: %s", err.EventName, err.MessageId, err.Error)
-      if shouldExit.Load() && len(q.errors) == 0 {
-        break out
-      }
-    }
-  }
-}
-
 func (q *QueryConsumerGroupHandler) Cleanup(session sarama.ConsumerGroupSession) error {
-  close(q.exitChan)
   close(q.errors)
   return nil
 }
 
-func (q *QueryConsumerGroupHandler) getLock(id string) *sync.Mutex {
-  q.concurrentLock.RLock()
-  lock, ok := q.concurrent[id]
-  q.concurrentLock.RUnlock()
-  if !ok {
-    q.concurrentLock.Lock()
-    lock = &sync.Mutex{}
-    q.concurrent[id] = lock
-    q.concurrentLock.Unlock()
+func (q *QueryConsumerGroupHandler) errorHandler() {
+  for msg := range q.errors {
+    logger.Infof("[%s] Error on processing %s::%s message, sent to DLQ", string(msg.message.Key), msg.event, msg.id)
+    // Send to DLQ
+    err := q.dlqPublisher.Forward(context.Background(), msg.message, msg.error)
+    if err != nil {
+      logger.Infof("Failed to forward message to DLQ: %v", err)
+    }
   }
-  return lock
 }
 
-func (q *QueryConsumerGroupHandler) sendError(id, eventName string, err error) {
+func (q *QueryConsumerGroupHandler) handleError(metadata *types.EventMetadata, message *sarama.ConsumerMessage, err error) {
   q.errors <- errorMessage{
-    MessageId: id,
-    EventName: eventName,
-    Error:     err,
+    id:      metadata.Id,
+    event:   metadata.Name,
+    message: message,
+    error:   err,
   }
+}
+
+func constructEventBase[E types.IEventBaseConstructable[T, V], T types.EventTyping, V types.EventVersioning](e E, id string, time time.Time) E {
+  e.ConstructEventBase(types.WithId[T, V](id), types.WithTime[T, V](time))
+  return e
 }
 
 func (q *QueryConsumerGroupHandler) ConsumeClaim(session sarama.ConsumerGroupSession, claim sarama.ConsumerGroupClaim) error {
-  // TODO: Delete concurrency, because sarama already handle each topic on its own goorutine
-  logger.Infof("Start consuming")
+  defer func() {
+    if r := recover(); r != nil {
+      logger.Infof("QueryConsumerGroupHandler::ConsumeClaim - Recovered from panic: %v", r)
+    }
+  }()
+
+  logger.Infof("Start consuming %s on [%d] starting at %d offset", claim.Topic(), claim.Partition(), claim.InitialOffset())
+
   for message := range claim.Messages() {
-    logger.Infof("Got Message")
+    var err error
+    logger.Infof("Got Message %s::%s ", message.Topic, message.Key)
     // Parse header
     md := types.NewEventMetadata(message.Headers, types.FromKafkaRecords())
     ctx := util.ExtractOTEL(md, message)
-    lock := q.getLock(md.Id)
-    lock.Lock()
 
-    switch message.Topic {
+    switch md.Name {
     case event.CustomerCreatedEvent:
-      go dispatcherHandlerV1[*event.CustomerCreatedV1](q, ctx, lock, message, func() *event.CustomerCreatedV1 {
-        return &event.CustomerCreatedV1{
-          DomainEventBaseV1: types.NewDomainEventV1(types.WithId(md.Id), types.WithTime(message.Timestamp)),
-        }
-      }, q.handler.OnCreatedV1)
+      err = dispatcherHandlerV1[*event.CustomerCreatedV1](q, ctx, message, constructEventBase(&event.CustomerCreatedV1{}, md.Id, message.Timestamp), q.handler.OnCreatedV1)
     case event.CustomerUpdatedEvent:
-      go dispatcherHandlerV1[*event.CustomerUpdatedV1](q, ctx, lock, message, func() *event.CustomerUpdatedV1 {
-        return &event.CustomerUpdatedV1{
-          DomainEventBaseV1: types.NewDomainEventV1(types.WithId(md.Id), types.WithTime(message.Timestamp)),
-        }
-      }, q.handler.OnUpdatedV1)
+      err = dispatcherHandlerV1[*event.CustomerUpdatedV1](q, ctx, message, constructEventBase(&event.CustomerUpdatedV1{}, md.Id, message.Timestamp), q.handler.OnUpdatedV1)
     case event.CustomerStatusUpdatedEvent:
+      err = dispatcherHandlerV1[*event.CustomerStatusUpdatedV1](q, ctx, message, constructEventBase(&event.CustomerStatusUpdatedV1{}, md.Id, message.Timestamp), q.handler.OnStatusUpdatedV1)
     case event.CustomerBalanceUpdatedEvent:
+      err = dispatcherHandlerV1[*event.CustomerBalanceUpdatedV1](q, ctx, message, constructEventBase(&event.CustomerBalanceUpdatedV1{}, md.Id, message.Timestamp), q.handler.OnBalanceUpdatedV1)
     case event.CustomerPasswordUpdatedEvent:
+      err = dispatcherHandlerV1[*event.CustomerPasswordUpdatedV1](q, ctx, message, constructEventBase(&event.CustomerPasswordUpdatedV1{}, md.Id, message.Timestamp), q.handler.OnPasswordUpdatedV1)
     case event.CustomerPhotoUpdatedEvent:
+      err = dispatcherHandlerV1[*event.CustomerPhotoUpdatedV1](q, ctx, message, constructEventBase(&event.CustomerPhotoUpdatedV1{}, md.Id, message.Timestamp), q.handler.OnPhotoUpdatedV1)
     case event.CustomerEmailVerifiedEvent:
-    case event.CustomerDeletedEvent:
-    case event.CustomerForgotPasswordRequestedEvent:
-    case event.CustomerEmailVerificationRequestedEvent:
+      err = dispatcherHandlerV1[*event.CustomerEmailVerifiedV1](q, ctx, message, constructEventBase(&event.CustomerEmailVerifiedV1{}, md.Id, message.Timestamp), q.handler.OnEmailVerifiedV1)
     case event.CustomerAddressAddedEvent:
-    case event.CustomerAddressesDeletedEvent:
+      err = dispatcherHandlerV1[*event.CustomerAddressAddedV1](q, ctx, message, constructEventBase(&event.CustomerAddressAddedV1{}, md.Id, message.Timestamp), q.handler.OnAddressAddedV1)
+    case event.CustomerAddressDeletedEvent:
+      err = dispatcherHandlerV1[*event.CustomerAddressDeletedV1](q, ctx, message, constructEventBase(&event.CustomerAddressDeletedV1{}, md.Id, message.Timestamp), q.handler.OnAddressDeletedV1)
     case event.CustomerAddressUpdatedEvent:
-    case event.CustomerVouchersAddedEvent:
-    case event.CustomerVouchersDeletedEvent:
+      err = dispatcherHandlerV1[*event.CustomerAddressUpdatedV1](q, ctx, message, constructEventBase(&event.CustomerAddressUpdatedV1{}, md.Id, message.Timestamp), q.handler.OnAddressUpdatedV1)
+    case event.CustomerVoucherAddedEvent:
+      err = dispatcherHandlerV1[*event.CustomerVoucherAddedV1](q, ctx, message, constructEventBase(&event.CustomerVoucherAddedV1{}, md.Id, message.Timestamp), q.handler.OnVoucherAddedV1)
+    case event.CustomerVoucherDeletedEvent:
+      err = dispatcherHandlerV1[*event.CustomerVoucherDeletedV1](q, ctx, message, constructEventBase(&event.CustomerVoucherDeletedV1{}, md.Id, message.Timestamp), q.handler.OnVoucherDeletedV1)
     case event.CustomerVoucherUpdatedEvent:
+      err = dispatcherHandlerV1[*event.CustomerVoucherUpdatedV1](q, ctx, message, constructEventBase(&event.CustomerVoucherUpdatedV1{}, md.Id, message.Timestamp), q.handler.OnVoucherUpdatedV1)
     case event.CustomerDefaultAddressUpdatedEvent:
+      err = dispatcherHandlerV1[*event.CustomerDefaultAddressUpdatedV1](q, ctx, message, constructEventBase(&event.CustomerDefaultAddressUpdatedV1{}, md.Id, message.Timestamp), q.handler.OnDefaultAddressUpdatedV1)
+    default:
+      err = fmt.Errorf("unknown event : %s", md.Name)
     }
+
+    if err != nil {
+      // Sent to dead letter queue
+      q.handleError(md, message, err)
+    }
+    session.MarkMessage(message, "")
   }
 
   return nil
@@ -176,33 +172,31 @@ func deserializeMessage[T types.Event](deser serde.IDeserializerAny, message *sa
   return err
 }
 
-func dispatcherHandlerV1[E types.Event](q *QueryConsumerGroupHandler, ctx context.Context, lock *sync.Mutex, message *sarama.ConsumerMessage, eventSetupFunc func() E, handle handler.ConsumerFunc[E]) {
-  md := ctx.Value(types.EventMetadataCtxKey{}).(*types.EventMetadata)
-  defer lock.Unlock()
-
+func dispatcherHandlerV1[E types.Event](q *QueryConsumerGroupHandler, ctx context.Context, message *sarama.ConsumerMessage, base E, handle handler.ConsumerFunc[E]) error {
   // Create base event
-  ev := eventSetupFunc()
-
   // Version check
-  if ver := ev.EventVersion(); ver != (types.V1{}).EventVersion() {
+  if ver := base.EventVersion(); ver != (types.V1{}).EventVersion() {
     err := sharedErr.Wrap(ErrUnexpectedVersion, sharedErr.WithPrefix("V"+strconv.Itoa(int(ver))))
-    q.sendError(md.Id, ev.EventName(), err)
-    return
+    return err
   }
-
-  logger.Infof("Deserialized Event: %+v", ev)
 
   // Deserialize event
-  err := deserializeMessage[E](q.deserializer, message, ev)
+  err := deserializeMessage[E](q.deserializer, message, base)
   if err != nil {
-    q.sendError(md.Id, ev.EventName(), err)
-    return
+    return err
   }
 
+  logger.Infof("Deserialized Event '%s': %+v", base.EventName(), base)
+
   // Process it
-  err = handle(ctx, ev)
-  if err != nil {
-    q.sendError(md.Id, ev.EventName(), err)
-    return
+  err = retry.Do(func() error {
+    return handle(ctx, base)
+  }, retry.Context(ctx), retry.OnRetry(inRetry(base.Identity(), base.EventName())))
+  return err
+}
+
+func inRetry(id string, eventName string) retry.OnRetryFunc {
+  return func(n uint, err error) {
+    logger.Infof("[%d] Retrying on processing event %s::%s -> %s", n, eventName, id, err)
   }
 }

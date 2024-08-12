@@ -12,18 +12,26 @@ import (
   "mini-shop/services/user/pkg/tracer"
 )
 
-func NewKafka(producer sarama.SyncProducer, serializer serde.ISerializer) repository.IMessagePublisher {
+func NewKafka(topic KafkaTopic, producer sarama.SyncProducer, serializer serde.ISerializer) repository.IMessagePublisher {
   return &kafkaPublisher{
     producer:   producer,
     serializer: serializer,
     tracer:     tracer.Get(),
+    topic:      topic,
   }
+}
+
+type KafkaTopic struct {
+  DomainEvent      string
+  IntegrationEvent string
 }
 
 type kafkaPublisher struct {
   producer   sarama.SyncProducer
   serializer serde.ISerializer
   tracer     trace.Tracer
+
+  topic KafkaTopic
 }
 
 func (k *kafkaPublisher) Close() error {
@@ -43,16 +51,33 @@ func (k *kafkaPublisher) PublishEvents(ctx context.Context, events ...types.Even
   }
 
   messages, ierr := sharedUtil.CastSliceErrs(events, func(event types.Event) (*sarama.ProducerMessage, error) {
+    // Serialize value
     bytes, err := k.serializer.Serialize(event)
     if err != nil {
       return nil, err
     }
 
+    // Get key
+    var key sarama.Encoder
+    keys, ok := event.Key()
+    if ok {
+      key = sarama.StringEncoder(keys)
+    }
+
+    // Construct metadata as header
+    metadata := types.ConstructMetadata(event)
+
+    // Determine topic
+    topic := k.topic.DomainEvent
+    if event.EventType() == types.EventTypeIntegration {
+      topic = k.topic.IntegrationEvent
+    }
+
     return &sarama.ProducerMessage{
-      Topic:     event.EventName(),
-      Key:       sarama.StringEncoder(event.Key()),
+      Topic:     topic,
+      Key:       key,
       Value:     sarama.ByteEncoder(bytes),
-      Headers:   event.Metadata().ToKafkaRecordHeader(),
+      Headers:   metadata.ToKafkaRecordHeader(),
       Timestamp: event.OccurredAt(),
     }, nil
   })

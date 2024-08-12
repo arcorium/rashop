@@ -8,6 +8,7 @@ import (
   "github.com/arcorium/rashop/shared/database"
   "github.com/arcorium/rashop/shared/grpc/interceptor/log"
   "github.com/arcorium/rashop/shared/logger"
+  "github.com/arcorium/rashop/shared/messaging/kafka"
   "github.com/arcorium/rashop/shared/serde"
   "github.com/arcorium/rashop/shared/types"
   sharedUtil "github.com/arcorium/rashop/shared/util"
@@ -45,6 +46,7 @@ import (
   "os/signal"
   "sync"
   "syscall"
+  "time"
 )
 
 func NewServer(serverConfig *config.QueryServer) (*Server, error) {
@@ -57,9 +59,10 @@ func NewServer(serverConfig *config.QueryServer) (*Server, error) {
 }
 
 type Server struct {
-  config   *config.QueryServer
-  db       *bun.DB
-  consumer sarama.ConsumerGroup // It should be sarama.Consumer, because each instance should handle it all
+  config       *config.QueryServer
+  db           *bun.DB
+  dlqPublisher sarama.SyncProducer
+  consumer     sarama.ConsumerGroup
 
   grpcServer     *grpc.Server
   metricServer   *http.Server
@@ -198,8 +201,6 @@ func (s *Server) createKafkaConfig() (*sarama.Config, error) {
   } else {
     conf.Version = constant.DefaultKafkaVersion
   }
-  conf.Producer.RequiredAcks = sarama.WaitForAll
-  conf.Producer.Return.Successes = true
   return conf, nil
 }
 
@@ -208,6 +209,10 @@ func (s *Server) consumerSetup() error {
   if err != nil {
     return err
   }
+  consumerCfg.Consumer.Return.Errors = true
+  consumerCfg.Consumer.Offsets.Initial = sarama.OffsetOldest
+  consumerCfg.Consumer.Offsets.AutoCommit.Enable = true
+  consumerCfg.Consumer.Offsets.AutoCommit.Interval = time.Second * 5
 
   group, err := sarama.NewConsumerGroup(s.config.Addresses, s.config.GroupId, consumerCfg)
   if err != nil {
@@ -216,6 +221,23 @@ func (s *Server) consumerSetup() error {
 
   s.consumer = group
   return err
+}
+
+func (s *Server) publisherSetup() error {
+  producerConf, err := s.createKafkaConfig()
+  if err != nil {
+    return err
+  }
+  producerConf.Producer.RequiredAcks = sarama.WaitForAll
+  producerConf.Producer.Return.Successes = true
+
+  producer, err := sarama.NewSyncProducer(s.config.Addresses, producerConf)
+  if err != nil {
+    return err
+  }
+
+  s.dlqPublisher = producer
+  return nil
 }
 
 func (s *Server) setup() error {
@@ -233,7 +255,10 @@ func (s *Server) setup() error {
   custRepo := pg.NewCustomer(s.db)
 
   // Publisher
-  //kafkaPublisher := publisher.NewKafka(s.producer, serde.JsonSerializer{})
+  if err := s.publisherSetup(); err != nil {
+    return err
+  }
+  forwarder := kafka.NewForwarder(constant.CUSTOMER_DLQ_TOPIC, s.dlqPublisher)
 
   // Service
   queryConsumerConfig := service.DefaultCustomerQueryConsumerConfig(custRepo)
@@ -243,13 +268,14 @@ func (s *Server) setup() error {
 
   // Handler
   customerQueryHandler := consumer.NewCustomerQueryHandler(queryConsumerSvc)
+
   // Consumer
   err := s.consumerSetup()
   if err != nil {
     return err
   }
-  consumerDispatcher := dispatcher.NewQueryConsumerGroup(100, customerQueryHandler, serde.JsonAnyDeserializer{})
-  dispatcher.RunQueryConsumerGroup(s.consumer, consumerDispatcher, constant.CustomerQuerySubscribedDomainEvent...)
+  consumerDispatcher := dispatcher.NewQueryConsumerGroup(forwarder, customerQueryHandler, serde.JsonAnyDeserializer{})
+  consumerDispatcher.Run(context.Background(), s.consumer, constant.CUSTOMER_DOMAIN_EVENT_TOPIC)
 
   // gRPC
   queryHandler := handler.NewCustomerQuery(querySvc)

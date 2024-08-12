@@ -15,11 +15,10 @@ type ICustomerQueryConsumer interface {
   BalanceUpdatedV1(ctx context.Context, ev *event.CustomerBalanceUpdatedV1) status.Object
   CreatedV1(ctx context.Context, ev *event.CustomerCreatedV1) status.Object
   DefaultAddressSetV1(ctx context.Context, ev *event.CustomerDefaultAddressUpdatedV1) status.Object
-  DisabledV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) status.Object
   EmailVerifiedV1(ctx context.Context, ev *event.CustomerEmailVerifiedV1) status.Object
-  EnabledV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) status.Object
   PasswordUpdatedV1(ctx context.Context, ev *event.CustomerPasswordUpdatedV1) status.Object
   PhotoUpdatedV1(ctx context.Context, ev *event.CustomerPhotoUpdatedV1) status.Object
+  StatusUpdatedV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) status.Object
   UpdatedV1(ctx context.Context, ev *event.CustomerUpdatedV1) status.Object
   VoucherAddedV1(ctx context.Context, ev *event.CustomerVoucherAddedV1) status.Object
   VoucherDeletedV1(ctx context.Context, ev *event.CustomerVoucherDeletedV1) status.Object
@@ -40,11 +39,10 @@ func DefaultCustomerQueryConsumerConfig(repo repository.ICustomer) CustomerQuery
     BalanceUpdated:    consumer.NewCustomerBalanceUpdatedConsumer(repo),
     Created:           consumer.NewCustomerCreatedConsumer(repo),
     DefaultAddressSet: consumer.NewCustomerDefaultAddressSetConsumer(repo),
-    Disabled:          consumer.NewCustomerDisabledConsumer(repo),
     EmailVerified:     consumer.NewCustomerEmailVerifiedConsumer(repo),
-    Enabled:           consumer.NewCustomerEnabledConsumer(repo),
     PasswordUpdated:   consumer.NewCustomerPasswordUpdatedConsumer(repo),
     PhotoUpdated:      consumer.NewCustomerPhotoUpdatedConsumer(repo),
+    StatusUpdated:     consumer.NewCustomerStatusUpdatedConsumer(repo),
     Updated:           consumer.NewCustomerUpdatedConsumer(repo),
     VouchersAdded:     consumer.NewCustomerVoucherAddedConsumer(repo),
     VoucherDeleted:    consumer.NewCustomerVoucherDeletedConsumer(repo),
@@ -59,11 +57,10 @@ type CustomerQueryConsumerConfig struct {
   BalanceUpdated    consumer.ICustomerBalanceUpdatedConsumer
   Created           consumer.ICustomerCreatedConsumer
   DefaultAddressSet consumer.ICustomerDefaultAddressSetConsumer
-  Disabled          consumer.ICustomerDisabledConsumer
   EmailVerified     consumer.ICustomerEmailVerifiedConsumer
-  Enabled           consumer.ICustomerEnabledConsumer
   PasswordUpdated   consumer.ICustomerPasswordUpdatedConsumer
   PhotoUpdated      consumer.ICustomerPhotoUpdatedConsumer
+  StatusUpdated     consumer.ICustomerStatusUpdatedConsumer
   Updated           consumer.ICustomerUpdatedConsumer
   VouchersAdded     consumer.ICustomerVoucherAddedConsumer
   VoucherDeleted    consumer.ICustomerVoucherDeletedConsumer
@@ -98,16 +95,8 @@ func (c *customerQueryConsumerService) DefaultAddressSetV1(ctx context.Context, 
   return c.DefaultAddressSet.Handle(ctx, ev)
 }
 
-func (c *customerQueryConsumerService) DisabledV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) status.Object {
-  return c.Disabled.Handle(ctx, ev)
-}
-
 func (c *customerQueryConsumerService) EmailVerifiedV1(ctx context.Context, ev *event.CustomerEmailVerifiedV1) status.Object {
   return c.EmailVerified.Handle(ctx, ev)
-}
-
-func (c *customerQueryConsumerService) EnabledV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) status.Object {
-  return c.Enabled.Handle(ctx, ev)
 }
 
 func (c *customerQueryConsumerService) PasswordUpdatedV1(ctx context.Context, ev *event.CustomerPasswordUpdatedV1) status.Object {
@@ -116,6 +105,10 @@ func (c *customerQueryConsumerService) PasswordUpdatedV1(ctx context.Context, ev
 
 func (c *customerQueryConsumerService) PhotoUpdatedV1(ctx context.Context, ev *event.CustomerPhotoUpdatedV1) status.Object {
   return c.PhotoUpdated.Handle(ctx, ev)
+}
+
+func (c *customerQueryConsumerService) StatusUpdatedV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) status.Object {
+  return c.StatusUpdated.Handle(ctx, ev)
 }
 
 func (c *customerQueryConsumerService) UpdatedV1(ctx context.Context, ev *event.CustomerUpdatedV1) status.Object {

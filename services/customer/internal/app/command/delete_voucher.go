@@ -54,7 +54,7 @@ func (a *deleteCustomerVoucherHandler) Handle(ctx context.Context, cmd *DeleteCu
     return status.FromRepository(err)
   }
 
-  // Publish all domain events
+  // Forward all domain events
   err = a.publisher.PublishAggregate(ctx, customer)
   if err != nil {
     spanUtil.RecordError(err, span)

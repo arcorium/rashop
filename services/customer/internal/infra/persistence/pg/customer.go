@@ -101,14 +101,14 @@ func (c *customerRepository) Get(ctx context.Context, parameter repo.QueryParame
 
   res := repo.CheckPaginationResult(dbModels, count, err)
   if res.IsError() {
-    spanUtil.RecordError(err, span)
+    spanUtil.RecordError(res.Err(), span)
     return repo.NewPaginatedResult[entity.Customer](nil, uint64(count)), res.Err()
   }
 
   entities, ierr := sharedUtil.CastSliceErrsP(dbModels, repo.ToDomainErr[*model.Customer, entity.Customer])
-  if !ierr.IsNil() {
+  if !ierr.IsNil() || ierr.IsEmptySlice() {
     spanUtil.RecordError(ierr, span)
-    return repo.NewPaginatedResult[entity.Customer](nil, uint64(count)), res.Err()
+    return repo.NewPaginatedResult[entity.Customer](nil, uint64(count)), ierr
   }
 
   return repo.NewPaginatedResult(entities, uint64(count)), nil
@@ -130,14 +130,14 @@ func (c *customerRepository) FindByIds(ctx context.Context, ids ...types.Id) ([]
     Relation("User").
     Relation("Vouchers").
     Relation("ShippingAddresses").
-    Join("JOIN result ON result.input_id = c.id").
+    Join("JOIN result ON result.input_id = c.user_id").
     Order("result._order").
     Scan(ctx)
 
   result := repo.CheckSliceResult(dbModels, err)
   if result.IsError() {
     spanUtil.RecordError(result.Err(), span)
-    return nil, err
+    return nil, result.Err()
   }
 
   entities, ierr := sharedUtil.CastSliceErrsP(dbModels, repo.ToDomainErr[*model.Customer, entity.Customer])
@@ -176,11 +176,11 @@ func (c *customerRepository) FindByEmails(ctx context.Context, emails ...types.E
   result := repo.CheckSliceResult(dbModels, err)
   if result.IsError() {
     spanUtil.RecordError(result.Err(), span)
-    return nil, err
+    return nil, result.Err()
   }
 
   entities, ierr := sharedUtil.CastSliceErrsP(dbModels, repo.ToDomainErr[*model.Customer, entity.Customer])
-  if !ierr.IsNil() {
+  if !ierr.IsNil() || ierr.IsEmptySlice() {
     spanUtil.RecordError(ierr, span)
     return nil, ierr
   }
@@ -193,7 +193,7 @@ func (c *customerRepository) updateCustomer(ctx context.Context, db bun.IDB, cus
   defer span.End()
 
   res, err := db.NewUpdate().
-    Model(&customer).
+    Model(customer).
     WherePK().
     Returning("NULL").
     Exec(ctx)
@@ -205,6 +205,7 @@ func (c *customerRepository) updateCustomer(ctx context.Context, db bun.IDB, cus
   res, err = db.NewUpdate().
     Model(customer.User).
     Returning("NULL").
+    WherePK().
     Exec(ctx)
 
   return repo.CheckResult(res, err)
@@ -233,7 +234,7 @@ func (c *customerRepository) Update(ctx context.Context, customer *entity.Custom
       }
     }
     // Update
-    if indices := customer.ShippingAddresses.Updated(); indices != nil {
+    if indices := customer.ShippingAddresses.Updated(); len(indices) > 0 {
       views := algo.FilterByIndicesPointing(dbModel.ShippingAddresses, indices...)
       err := c.updateAddress(ctx, tx, views...)
       if err != nil {
@@ -241,7 +242,7 @@ func (c *customerRepository) Update(ctx context.Context, customer *entity.Custom
       }
     }
     // Delete
-    if ids := customer.ShippingAddresses.Deleted(); ids != nil {
+    if ids := customer.ShippingAddresses.Deleted(); len(ids) > 0 {
       err := c.deleteAddresses(ctx, tx, customer.Id, ids...)
       if err != nil {
         return err
@@ -257,7 +258,7 @@ func (c *customerRepository) Update(ctx context.Context, customer *entity.Custom
       }
     }
     // Update
-    if indices := customer.Vouchers.Updated(); indices != nil {
+    if indices := customer.Vouchers.Updated(); len(indices) > 0 {
       views := algo.FilterByIndicesPointing(dbModel.Vouchers, indices...)
       err := c.updateVouchers(ctx, tx, views...)
       if err != nil {
@@ -265,7 +266,7 @@ func (c *customerRepository) Update(ctx context.Context, customer *entity.Custom
       }
     }
     // Delete
-    if ids := customer.Vouchers.Deleted(); ids != nil {
+    if ids := customer.Vouchers.Deleted(); len(ids) > 0 {
       err := c.deleteVouchers(ctx, tx, customer.Id, ids...)
       if err != nil {
         return err

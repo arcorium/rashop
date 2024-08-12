@@ -29,6 +29,7 @@ require (
 )
 
 require (
+	github.com/avast/retry-go v2.7.0+incompatible // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/caarlos0/env/v10 v10.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect

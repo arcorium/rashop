@@ -27,21 +27,21 @@ var (
 
 var _ types.Aggregate = (*Customer)(nil)
 
-func CreateCutomer(customer *Customer) (Customer, types.Event) {
+func CreateCustomer(customer *Customer) (Customer, types.Event) {
   cust := Customer{}
   ev := &event.CustomerCreatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        customer.Id.String(),
-    Email:             customer.Email,
-    Password:          customer.Password,
-    Username:          customer.Name.User,
-    FirstName:         customer.Name.First,
-    LastName:          customer.Name.Last,
-    Balance:           customer.Balance.Total,
-    Point:             customer.Balance.Point,
-    IsVerified:        customer.IsVerified,
-    IsDisabled:        customer.IsDisabled,
-    CreatedAt:         customer.CreatedAt,
+    DomainV1:   event.NewV1(),
+    CustomerId: customer.Id.String(),
+    Email:      customer.Email,
+    Password:   customer.Password,
+    Username:   customer.Name.User,
+    FirstName:  customer.Name.First,
+    LastName:   customer.Name.Last,
+    Balance:    customer.Balance.Total,
+    Point:      customer.Balance.Point,
+    IsVerified: customer.IsVerified,
+    IsDisabled: customer.IsDisabled,
+    CreatedAt:  customer.CreatedAt,
   }
   cust.AddEvents(ev)
   return cust, ev
@@ -87,13 +87,14 @@ func (c *Customer) Update(pred types.UnaryPredicate[*Customer]) types.Event {
 
   // Emit event
   ev := &event.CustomerUpdatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    Username:          c.Name.User,
-    FirstName:         c.Name.First,
-    LastName:          c.Name.Last,
-    Email:             c.Email,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    Username:   c.Name.User,
+    FirstName:  c.Name.First,
+    LastName:   c.Name.Last,
+    Email:      c.Email,
   }
+  ev.EventVersion()
   c.AddEvents(ev)
   return ev
 }
@@ -104,9 +105,9 @@ func (c *Customer) Enable() (types.Event, error) {
   }
 
   ev := &event.CustomerStatusUpdatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    Status:            c.IsDisabled,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    Status:     false,
   }
   c.AddEvents(ev)
 
@@ -119,9 +120,9 @@ func (c *Customer) Disable() (types.Event, error) {
   }
 
   ev := &event.CustomerStatusUpdatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    Status:            true,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    Status:     true,
   }
   c.AddEvents(ev)
 
@@ -140,9 +141,9 @@ func (c *Customer) ResetPassword(newPassword types.Password) (types.Event, error
   }
 
   ev := &event.CustomerPasswordUpdatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    NewPassword:       hashed,
+    DomainV1:    event.NewV1(),
+    CustomerId:  c.Id.String(),
+    NewPassword: hashed,
   }
   c.AddEvents(ev)
 
@@ -151,10 +152,10 @@ func (c *Customer) ResetPassword(newPassword types.Password) (types.Event, error
 
 func (c *Customer) SetBalance(balance, point uint64) types.Event {
   ev := &event.CustomerBalanceUpdatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    Balance:           balance,
-    Point:             point,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    Balance:    balance,
+    Point:      point,
   }
   c.AddEvents(ev)
   return ev
@@ -168,10 +169,10 @@ func (c *Customer) ModifyBalance(balanceModifier, pointModifier int64) types.Eve
 
 func (c *Customer) UpdatePhoto(mediaId types.Id) types.Event {
   ev := &event.CustomerPhotoUpdatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    LastMediaId:       c.PhotoId.String(),
-    NewMediaId:        mediaId,
+    DomainV1:    event.NewV1(),
+    CustomerId:  c.Id.String(),
+    LastMediaId: c.PhotoId.String(),
+    NewMediaId:  mediaId,
   }
   c.AddEvents(ev)
   return ev
@@ -195,9 +196,9 @@ func (c *Customer) SetDefaultAddress(addressId types.Id) (types.Event, error) {
   }
 
   ev := &event.CustomerDefaultAddressUpdatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    AddressId:         addressId,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    AddressId:  addressId,
   }
   c.AddEvents(ev)
 
@@ -213,14 +214,14 @@ func (c *Customer) getAddressIndex(addressId types.Id) (int, bool) {
 
 func (c *Customer) AddAddress(address *Address) types.Event {
   ev := &event.CustomerAddressAddedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    AddressId:         address.Id,
-    StreetAddress1:    address.StreetAddress1,
-    StreetAddress2:    address.StreetAddress2,
-    City:              address.City,
-    State:             address.State,
-    PostalCode:        address.PostalCode,
+    DomainV1:       event.NewV1(),
+    CustomerId:     c.Id.String(),
+    AddressId:      address.Id,
+    StreetAddress1: address.StreetAddress1,
+    StreetAddress2: address.StreetAddress2,
+    City:           address.City,
+    State:          address.State,
+    PostalCode:     address.PostalCode,
   }
   c.AddEvents(ev)
   return ev
@@ -238,14 +239,14 @@ func (c *Customer) UpdateAddress(addressId types.Id, pred types.UnaryPredicate[*
 
   // Emit event
   ev := &event.CustomerAddressUpdatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    AddressId:         current.Id,
-    StreetAddress1:    cloned.StreetAddress1,
-    StreetAddress2:    cloned.StreetAddress2,
-    City:              cloned.City,
-    State:             cloned.State,
-    PostalCode:        cloned.PostalCode,
+    DomainV1:       event.NewV1(),
+    CustomerId:     c.Id.String(),
+    AddressId:      current.Id,
+    StreetAddress1: cloned.StreetAddress1,
+    StreetAddress2: cloned.StreetAddress2,
+    City:           cloned.City,
+    State:          cloned.State,
+    PostalCode:     cloned.PostalCode,
   }
   c.AddEvents(ev)
 
@@ -259,9 +260,9 @@ func (c *Customer) DeleteAddress(addressId types.Id) (types.Event, error) {
   }
 
   ev := &event.CustomerAddressDeletedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    AddressId:         addressId,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    AddressId:  addressId,
   }
   c.AddEvents(ev)
   return ev, nil
@@ -281,9 +282,9 @@ func (c *Customer) AddVoucher(voucher *Voucher) (types.Event, error) {
   }
 
   ev := &event.CustomerVoucherAddedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    VoucherId:         voucher.Id,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    VoucherId:  voucher.Id,
   }
   c.AddEvents(ev)
 
@@ -303,9 +304,9 @@ func (c *Customer) DeleteVoucher(voucherId types.Id) (types.Event, error) {
   }
 
   ev := &event.CustomerVoucherDeletedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    VoucherId:         voucherId,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    VoucherId:  voucherId,
   }
   c.AddEvents(ev)
   return ev, nil
@@ -325,10 +326,10 @@ func (c *Customer) UpdateVoucher(voucherId types.Id, pred types.UnaryPredicate[*
   }
 
   ev := &event.CustomerVoucherUpdatedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    VoucherId:         current.Id,
-    IsBeingUsed:       current.IsBeingUsed,
+    DomainV1:    event.NewV1(),
+    CustomerId:  c.Id.String(),
+    VoucherId:   current.Id,
+    IsBeingUsed: current.IsBeingUsed,
   }
   c.AddEvents(ev)
   return ev, nil
@@ -344,8 +345,8 @@ func (c *Customer) VerifyEmail() (types.Event, error) {
   }
 
   ev := &event.CustomerEmailVerifiedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
   }
 
   c.AddEvents(ev)
@@ -354,10 +355,10 @@ func (c *Customer) VerifyEmail() (types.Event, error) {
 
 func (c *Customer) EmailVerificationRequest() types.Event {
   ev := &event.CustomerEmailVerificationRequestedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    Email:             c.Email.String(),
-    Username:          c.Name.User,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    Email:      c.Email.String(),
+    Username:   c.Name.User,
   }
   c.AddEvents(ev)
   return ev
@@ -365,10 +366,10 @@ func (c *Customer) EmailVerificationRequest() types.Event {
 
 func (c *Customer) ForgotPasswordRequest() types.Event {
   ev := &event.CustomerForgotPasswordRequestedV1{
-    DomainEventBaseV1: types.NewDomainEventV1(),
-    CustomerId:        c.Id.String(),
-    Email:             c.Email.String(),
-    Username:          c.Name.User,
+    DomainV1:   event.NewV1(),
+    CustomerId: c.Id.String(),
+    Email:      c.Email.String(),
+    Username:   c.Name.User,
   }
   c.AddEvents(ev)
   return ev

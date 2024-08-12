@@ -41,7 +41,7 @@ func (u *updateCustomerHandler) Handle(ctx context.Context, cmd *UpdateCustomerC
     return status.ErrBadRequest(err)
   }
 
-  // Publish email changed integration event
+  // Forward email changed integration event
   if current.IsEmailChanged() {
     current.AddEvents(intev.NewCustomerEmailChangedV1(current.Id, current.Email))
   }

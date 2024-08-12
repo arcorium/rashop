@@ -54,7 +54,7 @@ func (a *updateCustomerAddressHandler) Handle(ctx context.Context, cmd *UpdateCu
     return status.FromRepository(err)
   }
 
-  // Publish all domain events
+  // Forward all domain events
   err = a.publisher.PublishAggregate(ctx, current)
   if err != nil {
     spanUtil.RecordError(err, span)

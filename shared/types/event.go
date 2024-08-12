@@ -25,24 +25,24 @@ type Event interface {
   OccurredAt() time.Time
 }
 
-type EventOption[T EventTyping, V EventVersioning] func(base *EventBase[T, V])
+type EventOption[T EventTyping, V EventVersioning] func(base *eventBase[T, V])
 
 // WithTime set custom time for occurredAt field instead of time.Now() as defaulted one
 func WithTime[T EventTyping, V EventVersioning](t time.Time) EventOption[T, V] {
-  return func(base *EventBase[T, V]) {
+  return func(base *eventBase[T, V]) {
     base.occurredAt = t
   }
 }
 
 // WithId set the id instead of using the default which is using uuid
 func WithId[T EventTyping, V EventVersioning](id string) EventOption[T, V] {
-  return func(base *EventBase[T, V]) {
+  return func(base *eventBase[T, V]) {
     base.id = id
   }
 }
 
-func NewEvent[T EventTyping, V EventVersioning](opts ...EventOption[T, V]) EventBase[T, V] {
-  ev := EventBase[T, V]{
+func newEvent[T EventTyping, V EventVersioning](opts ...EventOption[T, V]) eventBase[T, V] {
+  ev := eventBase[T, V]{
     occurredAt: time.Now(),
     id:         uuid.NewString(),
   }
@@ -53,34 +53,37 @@ func NewEvent[T EventTyping, V EventVersioning](opts ...EventOption[T, V]) Event
   return ev
 }
 
-// EventBase base of event without typing, versioning and empty key.
+type IEventBaseConstructor interface {
+}
+
+// eventBase base of event without typing, versioning and empty key.
 // Override the method interface to provide them or use EventBaseV1 to add v1 as versioning,
 // DomainEventBase to add EventTypeDomain as event type and event DomainEventBaseV1 to add default
 // EventTypeDomain as event type and 1 for the version
-type EventBase[T EventTyping, V EventVersioning] struct {
+type eventBase[T EventTyping, V EventVersioning] struct {
   types      T
   version    V
   occurredAt time.Time
   id         string // Unique per event
 }
 
-func (e *EventBase[T, V]) OccurredAt() time.Time {
+func (e *eventBase[T, V]) OccurredAt() time.Time {
   return e.occurredAt
 }
 
-func (e *EventBase[T, V]) Identity() string {
+func (e *eventBase[T, V]) Identity() string {
   return e.id
 }
 
-func (e *EventBase[T, V]) Key() (string, bool) {
+func (e *eventBase[T, V]) Key() (string, bool) {
   return "", false
 }
 
-func (e *EventBase[T, V]) EventVersion() uint8 {
+func (e *eventBase[T, V]) EventVersion() uint8 {
   return e.version.EventVersion()
 }
 
-func (e *EventBase[T, V]) EventType() EventType {
+func (e *eventBase[T, V]) EventType() EventType {
   return e.types.EventType()
 }
 
@@ -93,18 +96,34 @@ func ConstructMetadata(e Event) Metadata {
   }
 }
 
-type DomainEvent = EventBase[DomainEventType, NoVersioning]
+type DomainEvent = eventBase[DomainEventType, NoVersioning]
 
 func NewDomainEvent[V EventVersioning](options ...EventOption[DomainEventType, V]) EventBase[DomainEventType, V] {
   return NewEvent[DomainEventType, V](options...)
 }
 
-type DomainEventV1 = EventBase[DomainEventType, V1]
+type DomainEventV1 = eventBase[DomainEventType, V1]
 
-type IntegrationEvent = EventBase[IntegrationEventType, NoVersioning]
+type IntegrationEvent = eventBase[IntegrationEventType, NoVersioning]
 
 func NewIntegrationEvent[V EventVersioning](options ...EventOption[IntegrationEventType, V]) EventBase[IntegrationEventType, V] {
   return NewEvent[IntegrationEventType, V](options...)
 }
 
-type IntegrationEventV1 = EventBase[IntegrationEventType, V1]
+type IntegrationEventV1 = eventBase[IntegrationEventType, V1]
+
+type IEventBaseConstructable[T EventTyping, V EventVersioning] interface {
+  ConstructEventBase(options ...EventOption[T, V])
+}
+
+type EventBase[T EventTyping, V EventVersioning] struct {
+  eventBase[T, V]
+}
+
+func (b *EventBase[T, V]) ConstructEventBase(options ...EventOption[T, V]) {
+  b.eventBase = newEvent(options...)
+}
+
+func NewEvent[T EventTyping, V EventVersioning](opts ...EventOption[T, V]) EventBase[T, V] {
+  return EventBase[T, V]{eventBase: newEvent(opts...)}
+}

@@ -50,7 +50,7 @@ import (
 
 func NewServer(serverConfig *config.CommandServer) (*Server, error) {
   svr := &Server{
-    serverConfig: serverConfig,
+    config: serverConfig,
   }
 
   err := svr.setup()
@@ -58,9 +58,9 @@ func NewServer(serverConfig *config.CommandServer) (*Server, error) {
 }
 
 type Server struct {
-  serverConfig *config.CommandServer
-  db           *bun.DB
-  producer     sarama.SyncProducer
+  config   *config.CommandServer
+  db       *bun.DB
+  producer sarama.SyncProducer
   //consumer     sarama.ConsumerGroup TODO: Needed later to handle integration event
 
   grpcServer     *grpc.Server
@@ -93,7 +93,7 @@ func (s *Server) setupOtel() (*promProv.ServerMetrics, *prometheus.Registry, err
   // Exporter
   s.exporter, err = otlptracegrpc.New(context.Background(),
     otlptracegrpc.WithInsecure(),
-    otlptracegrpc.WithEndpoint(s.serverConfig.OTLPGRPCCollectorAddress),
+    otlptracegrpc.WithEndpoint(s.config.OTLPGRPCCollectorAddress),
   )
   if err != nil {
     return nil, nil, err
@@ -168,7 +168,7 @@ func (s *Server) grpcServerSetup() error {
     EnableOpenMetrics: true,
   }))
 
-  s.metricServer = &http.Server{Handler: mux, Addr: s.serverConfig.MetricAddress()}
+  s.metricServer = &http.Server{Handler: mux, Addr: s.config.MetricAddress()}
 
   return nil
 }
@@ -176,7 +176,7 @@ func (s *Server) grpcServerSetup() error {
 func (s *Server) databaseSetup() error {
   // Database
   var err error
-  s.db, err = database.OpenPostgresWithConfig(&s.serverConfig.PostgresDatabase, sharedConf.IsDebug())
+  s.db, err = database.OpenPostgresWithConfig(&s.config.PostgresDatabase, sharedConf.IsDebug())
   if err != nil {
     return err
   }
@@ -191,32 +191,32 @@ func (s *Server) databaseSetup() error {
 
 func (s *Server) createKafkaConfig() (*sarama.Config, error) {
   conf := sarama.NewConfig()
-  if s.serverConfig.KafkaVersion != "" {
+  if s.config.KafkaVersion != "" {
     var err error
-    conf.Version, err = sarama.ParseKafkaVersion(s.serverConfig.KafkaVersion)
+    conf.Version, err = sarama.ParseKafkaVersion(s.config.KafkaVersion)
     if err != nil {
       return nil, err
     }
   } else {
     conf.Version = constant.DefaultKafkaVersion
   }
-  conf.Producer.RequiredAcks = sarama.WaitForAll
-  conf.Producer.Return.Successes = true
   return conf, nil
 }
 
 func (s *Server) publisherSetup() error {
-  producerCfg, err := s.createKafkaConfig()
+  producerConf, err := s.createKafkaConfig()
+  if err != nil {
+    return err
+  }
+  producerConf.Producer.RequiredAcks = sarama.WaitForAll
+  producerConf.Producer.Return.Successes = true
+
+  producer, err := sarama.NewSyncProducer(s.config.Addresses, producerConf)
   if err != nil {
     return err
   }
 
-  producer, err := sarama.NewSyncProducer(s.serverConfig.Addresses, producerCfg)
-  if err != nil {
-    return err
-  }
-
-  s.producer = otelsarama.WrapSyncProducer(producerCfg, producer)
+  s.producer = otelsarama.WrapSyncProducer(producerConf, producer)
   return nil
 }
 
@@ -239,7 +239,10 @@ func (s *Server) setup() error {
   if err != nil {
     return err
   }
-  kafkaPublisher := publisher.NewKafka(s.producer, serde.JsonSerializer{})
+  kafkaPublisher := publisher.NewKafka(publisher.KafkaTopic{
+    DomainEvent:      constant.CUSTOMER_DOMAIN_EVENT_TOPIC,
+    IntegrationEvent: constant.CUSTOMER_INTEGRATION_EVENT_TOPIC,
+  }, s.producer, serde.JsonSerializer{})
 
   // Service
   commandConfig := service.DefaultCustomerCommandConfig(cqrs.CommonHandlerParameter{
@@ -292,7 +295,7 @@ func (s *Server) shutdown() {
 }
 
 func (s *Server) Run() error {
-  listener, err := net.Listen("tcp", s.serverConfig.Address())
+  listener, err := net.Listen("tcp", s.config.Address())
   if err != nil {
     return err
   }
@@ -302,7 +305,7 @@ func (s *Server) Run() error {
     s.wg.Add(1)
     defer s.wg.Done()
 
-    logger.Infof("%s listening on %s", constant.SERVICE_COMMAND_NAME, s.serverConfig.Address())
+    logger.Infof("%s listening on %s", constant.SERVICE_COMMAND_NAME, s.config.Address())
 
     err = s.grpcServer.Serve(listener)
     logger.Infof("%s stopping", constant.SERVICE_COMMAND_NAME)
@@ -314,7 +317,7 @@ func (s *Server) Run() error {
   go func() {
     s.wg.Add(1)
     defer s.wg.Done()
-    logger.Infof("Metrics %s listening on %s", constant.SERVICE_COMMAND_NAME, s.serverConfig.MetricAddress())
+    logger.Infof("Metrics %s listening on %s", constant.SERVICE_COMMAND_NAME, s.config.MetricAddress())
 
     err = s.metricServer.ListenAndServe()
     logger.Infof("Metrics %s stopping", constant.SERVICE_COMMAND_NAME)

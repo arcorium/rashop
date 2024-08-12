@@ -77,13 +77,16 @@ func (c *Customer) ToDomain() (entity.Customer, error) {
     return entity.Customer{}, err
   }
 
-  photoId, err := types.IdFromString(c.PhotoId)
-  if err != nil {
-    return entity.Customer{}, err
+  var photoId types.Id
+  if len(c.PhotoId) > 0 {
+    photoId, err = types.IdFromString(c.PhotoId)
+    if err != nil {
+      return entity.Customer{}, err
+    }
   }
 
   addresses, ierr := sharedUtil.CastSliceErrsP(c.ShippingAddresses, repo.ToDomainErr[*ShippingAddress, entity.Address])
-  if !ierr.IsNil() {
+  if !ierr.IsNil() && !ierr.IsEmptySlice() {
     return entity.Customer{}, ierr
   }
 
@@ -91,7 +94,7 @@ func (c *Customer) ToDomain() (entity.Customer, error) {
   addresses = entity.ReorderAddresses(c.DefaultShippingAddressId, addresses)
 
   vouchers, ierr := sharedUtil.CastSliceErrsP(c.Vouchers, repo.ToDomainErr[*Voucher, entity.Voucher])
-  if !ierr.IsNil() {
+  if !ierr.IsNil() && !ierr.IsEmptySlice() {
     return entity.Customer{}, nil
   }
 

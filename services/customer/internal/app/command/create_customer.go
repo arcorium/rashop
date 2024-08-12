@@ -35,7 +35,7 @@ func (c *createCustomerHandler) Handle(ctx context.Context, command *CreateCusto
     return types.NullId(), status.ErrInternal(err)
   }
 
-  customer, ev := entity.CreateCutomer(&customer)
+  customer, ev := entity.CreateCustomer(&customer)
   err = customer.ApplyEvent(ev)
   if err != nil {
     spanUtil.RecordError(err, span)
@@ -53,7 +53,7 @@ func (c *createCustomerHandler) Handle(ctx context.Context, command *CreateCusto
   integrationEv := intev.NewCustomerCreatedV1(customer.Id, customer.Email, customer.Name.User)
   customer.AddEvents(integrationEv)
 
-  // Publish all domain events
+  // Forward all domain events
   err = c.publisher.PublishAggregate(ctx, &customer)
   if err != nil {
     spanUtil.RecordError(err, span)

@@ -40,7 +40,7 @@ func HandleSimple[E types.Event](ctx context.Context, customerId string, repo re
   current := &customers[0]
   err = current.ApplyEvent(ev)
   if err != nil {
-    return status.FromRepository(err)
+    return status.ErrBadRequest(err)
   }
 
   // Update modified aggregate

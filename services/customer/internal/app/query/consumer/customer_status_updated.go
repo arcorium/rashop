@@ -9,22 +9,22 @@ import (
   "mini-shop/services/user/internal/domain/repository"
 )
 
-type ICustomerEnabledConsumer interface {
+type ICustomerStatusUpdatedConsumer interface {
   handler.Consumer[*event.CustomerStatusUpdatedV1]
 }
 
-func NewCustomerEnabledConsumer(repo repository.ICustomer) ICustomerEnabledConsumer {
-  return &customerEnabledConsumer{
+func NewCustomerStatusUpdatedConsumer(repo repository.ICustomer) ICustomerStatusUpdatedConsumer {
+  return &customerStatusUpdatedConsumer{
     commonHandlerField: newBasicHandler(repo),
   }
 }
 
-type customerEnabledConsumer struct {
+type customerStatusUpdatedConsumer struct {
   commonHandlerField
 }
 
-func (c *customerEnabledConsumer) Handle(ctx context.Context, e *event.CustomerStatusUpdatedV1) status.Object {
-  ctx, span := c.tracer.Start(ctx, "customerEnabledConsumer.Handle")
+func (c *customerStatusUpdatedConsumer) Handle(ctx context.Context, e *event.CustomerStatusUpdatedV1) status.Object {
+  ctx, span := c.tracer.Start(ctx, "customerStatusUpdatedConsumer.Handle")
   defer span.End()
 
   stat := HandleSimple(ctx, e.CustomerId, c.repo, e)

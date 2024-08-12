@@ -1,8 +1,11 @@
+root = "."
+tmp_dir = "/tmp"
+
 [build]
-cmd = "GOFLAGS=-buildvcs=false go build -o ./tmp/query_server ./cmd/query_server"
-bin = "tmp/query_server"
+cmd = "GOFLAGS=-buildvcs=false go build -o /tmp/main ./cmd/query_server"
+bin = "/tmp/main"
 include_ext = ["env", "go", "mod", "sum", "tpl", "tmpl"]
-exclude_dir = ["docker", "cmd/command_server", "test"]
+exclude_dir = ["docker", "cmd/command_server", "test", "internal/app/command"]
 send_interrupt = true
 #rerun = true
 rerun_delay = 1000

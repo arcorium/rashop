@@ -21,12 +21,11 @@ type ICustomerQueryHandler interface {
   OnAddressUpdatedV1(ctx context.Context, ev *event.CustomerAddressUpdatedV1) error
   OnBalanceUpdatedV1(ctx context.Context, ev *event.CustomerBalanceUpdatedV1) error
   OnCreatedV1(ctx context.Context, ev *event.CustomerCreatedV1) error
-  OnDefaultAddressSetV1(ctx context.Context, v1 *event.CustomerDefaultAddressUpdatedV1) error
-  OnDisabledV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) error
+  OnDefaultAddressUpdatedV1(ctx context.Context, v1 *event.CustomerDefaultAddressUpdatedV1) error
   OnEmailVerifiedV1(ctx context.Context, ev *event.CustomerEmailVerifiedV1) error
-  OnEnabledV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) error
   OnPasswordUpdatedV1(ctx context.Context, ev *event.CustomerPasswordUpdatedV1) error
   OnPhotoUpdatedV1(ctx context.Context, ev *event.CustomerPhotoUpdatedV1) error
+  OnStatusUpdatedV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) error
   OnUpdatedV1(ctx context.Context, ev *event.CustomerUpdatedV1) error
   OnVoucherAddedV1(ctx context.Context, ev *event.CustomerVoucherAddedV1) error
   OnVoucherDeletedV1(ctx context.Context, ev *event.CustomerVoucherDeletedV1) error
@@ -78,19 +77,11 @@ func (c *CustomerQueryConsumer) OnCreatedV1(ctx context.Context, ev *event.Custo
   return stat.ToGRPCErrorWithSpan(span)
 }
 
-func (c *CustomerQueryConsumer) OnDefaultAddressSetV1(ctx context.Context, v1 *event.CustomerDefaultAddressUpdatedV1) error {
-  ctx, span := c.tracer.Start(ctx, "CustomerQueryConsumer.OnDefaultAddressSetV1")
+func (c *CustomerQueryConsumer) OnDefaultAddressUpdatedV1(ctx context.Context, v1 *event.CustomerDefaultAddressUpdatedV1) error {
+  ctx, span := c.tracer.Start(ctx, "CustomerQueryConsumer.OnDefaultAddressUpdatedV1")
   defer span.End()
 
   stat := c.svc.DefaultAddressSetV1(ctx, v1)
-  return stat.ErrorWithSpan(span)
-}
-
-func (c *CustomerQueryConsumer) OnDisabledV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) error {
-  ctx, span := c.tracer.Start(ctx, "CustomerQueryConsumer.OnDisabledV1")
-  defer span.End()
-
-  stat := c.svc.DisabledV1(ctx, ev)
   return stat.ErrorWithSpan(span)
 }
 
@@ -99,14 +90,6 @@ func (c *CustomerQueryConsumer) OnEmailVerifiedV1(ctx context.Context, ev *event
   defer span.End()
 
   stat := c.svc.EmailVerifiedV1(ctx, ev)
-  return stat.ErrorWithSpan(span)
-}
-
-func (c *CustomerQueryConsumer) OnEnabledV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) error {
-  ctx, span := c.tracer.Start(ctx, "CustomerQueryConsumer.OnEnabledV1")
-  defer span.End()
-
-  stat := c.svc.EnabledV1(ctx, ev)
   return stat.ErrorWithSpan(span)
 }
 
@@ -123,6 +106,14 @@ func (c *CustomerQueryConsumer) OnPhotoUpdatedV1(ctx context.Context, ev *event.
   defer span.End()
 
   stat := c.svc.PhotoUpdatedV1(ctx, ev)
+  return stat.ErrorWithSpan(span)
+}
+
+func (c *CustomerQueryConsumer) OnStatusUpdatedV1(ctx context.Context, ev *event.CustomerStatusUpdatedV1) error {
+  ctx, span := c.tracer.Start(ctx, "CustomerQueryConsumer.OnStatusUpdatedV1")
+  defer span.End()
+
+  stat := c.svc.StatusUpdatedV1(ctx, ev)
   return stat.ErrorWithSpan(span)
 }
 

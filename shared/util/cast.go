@@ -16,3 +16,5 @@ func ToString[T fmt.Stringer](str T) string {
 func ToAny[T any](val T) any {
   return val
 }
+
+func ToDeref[T any](val *T) T { return *val }

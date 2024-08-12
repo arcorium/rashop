@@ -35,7 +35,7 @@ func (f *verificationCustomerEmailRequestHandler) Handle(ctx context.Context, cm
   current := &customers[0]
   current.EmailVerificationRequest()
 
-  //TODO: Publish integration event
+  //TODO: Forward integration event
   // TODO: Token service should subscribe to those event
   // TODO: Email servic should subscirbe to token_created integrated event
 
