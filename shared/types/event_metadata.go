@@ -9,6 +9,7 @@ import (
 
 const (
   METADATA_IDENTITY_KEY   = "id"
+  METADATA_EVENT_NAME_KEY = "event"
   METADATA_VERSION_KEY    = "version"
   METADATA_EVENT_TYPE_KEY = "type"
 )
@@ -46,6 +47,8 @@ func (m metadataEventBuilder) Handle(metadata Metadata) *EventMetadata {
     switch record.Key {
     case METADATA_IDENTITY_KEY:
       result.Id = record.Val
+    case METADATA_EVENT_NAME_KEY:
+      result.Name = record.Val
     case METADATA_EVENT_TYPE_KEY:
       result.Type = NewEventType(record.Val)
     case METADATA_VERSION_KEY:
@@ -63,6 +66,8 @@ func (m kafkaRecordEventBuilder) Handle(headers []*sarama.RecordHeader) *EventMe
     switch string(record.Key) {
     case METADATA_IDENTITY_KEY:
       result.Id = string(record.Value)
+    case METADATA_EVENT_NAME_KEY:
+      result.Name = string(record.Value)
     case METADATA_EVENT_TYPE_KEY:
       result.Type = NewEventType(string(record.Value))
     case METADATA_VERSION_KEY:
@@ -105,6 +110,7 @@ func NewEventMetadata[T any](val T, builder eventMetadataBuilder[T]) *EventMetad
 type EventMetadata struct {
   Id      string
   Version uint8
+  Name    string
   Type    EventType
 }
 
@@ -142,24 +148,36 @@ type EventTyping interface {
 
 type NoEventTyping struct{}
 
-func (NoEventTyping) EvenType() EventType {
+func (NoEventTyping) EventType() EventType {
   return EventTypeUnknown
+}
+
+type DomainEventType struct{}
+
+func (DomainEventType) EventType() EventType {
+  return EventTypeDomain
+}
+
+type IntegrationEventType struct{}
+
+func (IntegrationEventType) EventType() EventType {
+  return EventTypeIntegration
 }
 
 type NoVersioning struct{}
 
-func (e NoVersioning) EventVersion() uint8 {
+func (NoVersioning) EventVersion() uint8 {
   return 0
 }
 
 type V1 struct{}
 
-func (e V1) EventVersion() uint8 {
+func (V1) EventVersion() uint8 {
   return 1
 }
 
 type V2 struct{}
 
-func (e V2) EventVersion() uint8 {
+func (V2) EventVersion() uint8 {
   return 2
 }

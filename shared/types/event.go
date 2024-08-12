@@ -7,7 +7,8 @@ import (
 )
 
 type Keyer interface {
-  Key() string
+  // Key return if the event has key, it will return false for bool if it has no key
+  Key() (string, bool)
 }
 
 type Metadataer interface {
@@ -17,146 +18,93 @@ type Metadataer interface {
 type Event interface {
   Entity
   Keyer
-  Metadataer
+  //Metadataer
   EventVersioning
   EventTyping
   EventName() string
   OccurredAt() time.Time
 }
 
-type EventOption func(base *EventBase)
+type EventOption[T EventTyping, V EventVersioning] func(base *EventBase[T, V])
 
 // WithTime set custom time for occurredAt field instead of time.Now() as defaulted one
-func WithTime(t time.Time) EventOption {
-  return func(base *EventBase) {
+func WithTime[T EventTyping, V EventVersioning](t time.Time) EventOption[T, V] {
+  return func(base *EventBase[T, V]) {
     base.occurredAt = t
   }
 }
 
 // WithId set the id instead of using the default which is using uuid
-func WithId(id string) EventOption {
-  return func(base *EventBase) {
+func WithId[T EventTyping, V EventVersioning](id string) EventOption[T, V] {
+  return func(base *EventBase[T, V]) {
     base.id = id
   }
 }
 
-func NewEvent(opts ...EventOption) EventBase {
-  event := EventBase{
-    id:         uuid.NewString(),
+func NewEvent[T EventTyping, V EventVersioning](opts ...EventOption[T, V]) EventBase[T, V] {
+  ev := EventBase[T, V]{
     occurredAt: time.Now(),
+    id:         uuid.NewString(),
   }
 
   for _, opt := range opts {
-    opt(&event)
+    opt(&ev)
   }
-  return event
+  return ev
 }
 
 // EventBase base of event without typing, versioning and empty key.
 // Override the method interface to provide them or use EventBaseV1 to add v1 as versioning,
 // DomainEventBase to add EventTypeDomain as event type and event DomainEventBaseV1 to add default
 // EventTypeDomain as event type and 1 for the version
-type EventBase struct {
-  NoVersioning
-  NoEventTyping
+type EventBase[T EventTyping, V EventVersioning] struct {
+  types      T
+  version    V
   occurredAt time.Time
   id         string // Unique per event
 }
 
-func (e *EventBase) OccurredAt() time.Time {
+func (e *EventBase[T, V]) OccurredAt() time.Time {
   return e.occurredAt
 }
 
-func (e *EventBase) Identity() string {
+func (e *EventBase[T, V]) Identity() string {
   return e.id
 }
 
-func (e *EventBase) Key() string {
-  return ""
+func (e *EventBase[T, V]) Key() (string, bool) {
+  return "", false
 }
 
-func (e *EventBase) Metadata() Metadata {
+func (e *EventBase[T, V]) EventVersion() uint8 {
+  return e.version.EventVersion()
+}
+
+func (e *EventBase[T, V]) EventType() EventType {
+  return e.types.EventType()
+}
+
+func ConstructMetadata(e Event) Metadata {
   return Metadata{
-    NewKeyVal(METADATA_IDENTITY_KEY, e.id),
+    NewKeyVal(METADATA_IDENTITY_KEY, e.Identity()),
+    NewKeyVal(METADATA_EVENT_NAME_KEY, e.EventName()),
     NewKeyVal(METADATA_VERSION_KEY, strconv.Itoa(int(e.EventVersion()))),
-    NewKeyVal(METADATA_EVENT_TYPE_KEY, string(e.EvenType())),
+    NewKeyVal(METADATA_EVENT_TYPE_KEY, string(e.EventType())),
   }
 }
 
-func NewDomainEvent(options ...EventOption) DomainEventBase {
-  return DomainEventBase{
-    EventBase: NewEvent(options...),
-  }
+type DomainEvent = EventBase[DomainEventType, NoVersioning]
+
+func NewDomainEvent[V EventVersioning](options ...EventOption[DomainEventType, V]) EventBase[DomainEventType, V] {
+  return NewEvent[DomainEventType, V](options...)
 }
 
-type DomainEventBase struct {
-  EventBase
+type DomainEventV1 = EventBase[DomainEventType, V1]
+
+type IntegrationEvent = EventBase[IntegrationEventType, NoVersioning]
+
+func NewIntegrationEvent[V EventVersioning](options ...EventOption[IntegrationEventType, V]) EventBase[IntegrationEventType, V] {
+  return NewEvent[IntegrationEventType, V](options...)
 }
 
-func (d *DomainEventBase) EventType() EventType {
-  return EventTypeDomain
-}
-
-func NewIntegrationEvent(options ...EventOption) IntegrationEventBase {
-  return IntegrationEventBase{
-    EventBase: NewEvent(options...),
-  }
-}
-
-type IntegrationEventBase struct {
-  EventBase
-}
-
-func (d *IntegrationEventBase) EventType() EventType {
-  return EventTypeIntegration
-}
-
-func NewEventV1(options ...EventOption) EventBaseV1 {
-  return EventBaseV1{
-    EventBase: NewEvent(options...),
-    V1:        V1{},
-  }
-}
-
-type EventBaseV1 struct {
-  EventBase
-  V1
-}
-
-func NewEventV2(options ...EventOption) EventBaseV2 {
-  return EventBaseV2{
-    EventBase: NewEvent(options...),
-    V2:        V2{},
-  }
-}
-
-type EventBaseV2 struct {
-  EventBase
-  V2
-}
-
-func NewDomainEventV1(options ...EventOption) DomainEventBaseV1 {
-  return DomainEventBaseV1{
-    DomainEventBase: NewDomainEvent(options...),
-    V1:              V1{},
-  }
-}
-
-type Constructor[T Event] func(*T)
-
-type DomainEventBaseV1 struct {
-  DomainEventBase
-  V1
-}
-
-func NewIntegrationEventV1(options ...EventOption) IntegrationEventBaseV1 {
-  return IntegrationEventBaseV1{
-    IntegrationEventBase: NewIntegrationEvent(options...),
-    V1:                   V1{},
-  }
-}
-
-type IntegrationEventBaseV1 struct {
-  IntegrationEventBase
-  V1
-}
+type IntegrationEventV1 = EventBase[IntegrationEventType, V1]
