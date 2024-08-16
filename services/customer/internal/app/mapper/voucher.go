@@ -1,8 +1,8 @@
 package mapper
 
 import (
-  "mini-shop/services/user/internal/app/dto"
-  "mini-shop/services/user/internal/domain/entity"
+  "rashop/services/customer/internal/app/dto"
+  "rashop/services/customer/internal/domain/entity"
 )
 
 func ToVoucherResponseDTO(voucher *entity.Voucher) dto.VoucherResponseDTO {

@@ -5,7 +5,7 @@ import (
   "github.com/arcorium/rashop/shared/interfaces/handler"
   "github.com/arcorium/rashop/shared/status"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type ISetCustomerDefaultAddressHandler interface {
@@ -51,7 +51,7 @@ func (u *setCustomerDefaultAddressHandler) Handle(ctx context.Context, cmd *SetC
     return status.FromRepository(err)
   }
 
-  err = u.publisher.PublishAggregate(ctx, current)
+  err = u.publisher.Publish(ctx, current)
   if err != nil {
     spanUtil.RecordError(err, span)
     return status.ErrInternal(err)

@@ -5,5 +5,5 @@ import sharedConf "github.com/arcorium/rashop/shared/config"
 type QueryServer struct {
   sharedConf.Server
   Database
-  MessageBroker
+  Broker MessageBroker
 }

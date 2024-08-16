@@ -6,8 +6,8 @@ import (
   "github.com/arcorium/rashop/shared/types"
   sharedUtil "github.com/arcorium/rashop/shared/util"
   "google.golang.org/protobuf/types/known/timestamppb"
-  "mini-shop/services/user/internal/app/dto"
-  "mini-shop/services/user/internal/app/query"
+  "rashop/services/customer/internal/app/dto"
+  "rashop/services/customer/internal/app/query"
 )
 
 func ToGetCustomerByIdsQuery(request *customerv1.FindCustomerByIdsRequest) (query.GetCustomerByIdsQuery, error) {

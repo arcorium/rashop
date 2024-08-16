@@ -8,9 +8,9 @@ import (
   sharedUtil "github.com/arcorium/rashop/shared/util"
   "github.com/dnwe/otelsarama"
   "log"
-  "mini-shop/services/user/constant"
-  "mini-shop/services/user/internal/domain/event"
-  "mini-shop/services/user/internal/infra/publisher"
+  "rashop/services/customer/constant"
+  "rashop/services/customer/internal/domain/event"
+  "rashop/services/customer/internal/infra/publisher"
   "time"
 )
 
@@ -44,8 +44,8 @@ func main() {
 
   custId := types.MustCreateId().String()
   repo := publisher.NewKafka(publisher.KafkaTopic{
-    DomainEvent:      constant.CUSTOMER_DOMAIN_EVENT_TOPIC,
-    IntegrationEvent: constant.CUSTOMER_INTEGRATION_EVENT_TOPIC,
+    DomainEvent:      constant.CustomerDomainEventTopic,
+    IntegrationEvent: constant.CustomerIntegrationEventTopic,
   }, publish, serde.JsonSerializer{})
   v1 := &event.CustomerCreatedV1{
     DomainV1:   event.NewV1(),

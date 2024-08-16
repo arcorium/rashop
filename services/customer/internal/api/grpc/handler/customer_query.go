@@ -3,13 +3,15 @@ package handler
 import (
   "context"
   "github.com/arcorium/rashop/proto/gen/go/customer/v1"
+  "github.com/arcorium/rashop/shared/logger"
   sharedUtil "github.com/arcorium/rashop/shared/util"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
   "go.opentelemetry.io/otel/trace"
   "google.golang.org/grpc"
-  "mini-shop/services/user/internal/api/grpc/mapper"
-  "mini-shop/services/user/internal/app/service"
-  "mini-shop/services/user/pkg/tracer"
+  "rashop/services/customer/internal/api/grpc/mapper"
+  "rashop/services/customer/internal/app/query"
+  "rashop/services/customer/internal/app/service"
+  "rashop/services/customer/pkg/tracer"
 )
 
 func NewCustomerQuery(svc service.ICustomerQuery) CustomerQueryHandler {
@@ -28,6 +30,26 @@ type CustomerQueryHandler struct {
 
 func (c *CustomerQueryHandler) Register(server *grpc.Server) {
   customerv1.RegisterCustomerQueryServiceServer(server, c)
+}
+
+func (c *CustomerQueryHandler) Get(ctx context.Context, request *customerv1.GetCustomersRequest) (*customerv1.GetCustomerResponse, error) {
+  ctx, span := c.tracer.Start(ctx, "CustomerQueryHandler.GetCustomers")
+  defer span.End()
+
+  dtos := mapper.ToPagedParameter(request)
+  logger.Infof("Value: %v", dtos)
+
+  customers, stat := c.svc.GetCustomers(ctx, &query.GetCustomersQuery{PagedElementDTO: dtos})
+  if stat.IsError() {
+    spanUtil.RecordError(stat.Error, span)
+    return nil, stat.ToGRPCError()
+  }
+
+  resp := &customerv1.GetCustomerResponse{
+    Customers: sharedUtil.CastSliceP(customers.Data, mapper.ToProtoCustomer),
+    Detail:    mapper.ToProtoPagedElementDetails(&customers),
+  }
+  return resp, nil
 }
 
 func (c *CustomerQueryHandler) FindByIds(ctx context.Context, request *customerv1.FindCustomerByIdsRequest) (*customerv1.FindCustomerByIdsResponse, error) {

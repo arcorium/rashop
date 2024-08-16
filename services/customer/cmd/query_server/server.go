@@ -7,8 +7,10 @@ import (
   sharedConf "github.com/arcorium/rashop/shared/config"
   "github.com/arcorium/rashop/shared/database"
   "github.com/arcorium/rashop/shared/grpc/interceptor/log"
+  "github.com/arcorium/rashop/shared/interfaces"
   "github.com/arcorium/rashop/shared/logger"
   "github.com/arcorium/rashop/shared/messaging/kafka"
+  otelUtil "github.com/arcorium/rashop/shared/otel"
   "github.com/arcorium/rashop/shared/serde"
   "github.com/arcorium/rashop/shared/types"
   sharedUtil "github.com/arcorium/rashop/shared/util"
@@ -16,42 +18,38 @@ import (
   "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/logging"
   "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
   "github.com/prometheus/client_golang/prometheus"
-  "github.com/prometheus/client_golang/prometheus/collectors"
   "github.com/prometheus/client_golang/prometheus/promhttp"
   "github.com/uptrace/bun"
   "github.com/uptrace/bun/extra/bunotel"
   "go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
-  "go.opentelemetry.io/otel"
+  "go.opentelemetry.io/otel/attribute"
   "go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
-  "go.opentelemetry.io/otel/propagation"
-  "go.opentelemetry.io/otel/sdk/resource"
-  sdktrace "go.opentelemetry.io/otel/sdk/trace"
   semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
   "go.opentelemetry.io/otel/trace"
   "google.golang.org/grpc"
   "google.golang.org/grpc/health"
   "google.golang.org/grpc/health/grpc_health_v1"
   "google.golang.org/grpc/reflection"
-  "mini-shop/services/user/config"
-  "mini-shop/services/user/constant"
-  "mini-shop/services/user/internal/api/grpc/handler"
-  "mini-shop/services/user/internal/api/messaging/consumer"
-  "mini-shop/services/user/internal/api/messaging/dispatcher"
-  "mini-shop/services/user/internal/app/service"
-  "mini-shop/services/user/internal/infra/model"
-  "mini-shop/services/user/internal/infra/persistence/pg"
   "net"
   "net/http"
   "os"
   "os/signal"
+  "rashop/services/customer/config"
+  "rashop/services/customer/constant"
+  "rashop/services/customer/internal/api/grpc/handler"
+  "rashop/services/customer/internal/api/messaging/consumer"
+  "rashop/services/customer/internal/api/messaging/dispatcher"
+  "rashop/services/customer/internal/app/service"
+  "rashop/services/customer/internal/infra/model"
+  "rashop/services/customer/internal/infra/persistence/pg"
   "sync"
   "syscall"
-  "time"
 )
 
 func NewServer(serverConfig *config.QueryServer) (*Server, error) {
   svr := &Server{
-    config: serverConfig,
+    ServerBase: interfaces.NewServer(),
+    config:     serverConfig,
   }
 
   err := svr.setup()
@@ -59,16 +57,15 @@ func NewServer(serverConfig *config.QueryServer) (*Server, error) {
 }
 
 type Server struct {
-  config       *config.QueryServer
-  db           *bun.DB
-  dlqPublisher sarama.SyncProducer
-  consumer     sarama.ConsumerGroup
+  interfaces.ServerBase
+  config      *config.QueryServer
+  db          *bun.DB
+  dlqProducer sarama.SyncProducer
+  consumer    sarama.ConsumerGroup
 
-  grpcServer     *grpc.Server
-  metricServer   *http.Server
-  logger         logger.ILogger
-  exporter       sdktrace.SpanExporter
-  tracerProvider *sdktrace.TracerProvider
+  grpcServer   *grpc.Server
+  metricServer *http.Server
+  shutdownFunc otelUtil.ShutdownFunc
 
   wg sync.WaitGroup
 }
@@ -78,63 +75,40 @@ func (s *Server) validationSetup() {
   types.RegisterDefaultNullableValidations(validator)
 }
 
-func (s *Server) setupOtel() (*promProv.ServerMetrics, *prometheus.Registry, error) {
-  var err error
-  // Metrics
+func (s *Server) grpcServerSetup() (*promProv.ServerMetrics, error) {
+  // Log
+  zaplogger, ok := logger.GetGlobal().(*logger.ZapLogger)
+  if !ok {
+    return nil, errors.New("logger is not of expected type, expected zap")
+  }
+  zapLogger := log.ZapLogger(zaplogger.Internal)
+
+  // OTEL
   metrics := promProv.NewServerMetrics(
     promProv.WithServerHandlingTimeHistogram(
       promProv.WithHistogramBuckets([]float64{0.001, 0.01, 0.1, 0.3, 0.6, 1, 3, 6, 9, 20, 30, 60, 90, 120}),
     ),
   )
 
-  reg := prometheus.NewRegistry()
-  reg.MustRegister(metrics)
-
-  // Trace
-  // Exporter
-  s.exporter, err = otlptracegrpc.New(context.Background(),
-    otlptracegrpc.WithInsecure(),
-    otlptracegrpc.WithEndpoint(s.config.OTLPGRPCCollectorAddress),
-  )
-  if err != nil {
-    return nil, nil, err
-  }
-
-  // Resource
-  res, err := resource.New(context.Background(),
-    resource.WithAttributes(
-      semconv.ServiceName(constant.SERVICE_NAME),
-      semconv.ServiceVersion(constant.SERVICE_VERSION),
-    ))
-
-  bsp := sdktrace.NewBatchSpanProcessor(s.exporter)
-  s.tracerProvider = sdktrace.NewTracerProvider(
-    sdktrace.WithSampler(sdktrace.AlwaysSample()),
-    sdktrace.WithSpanProcessor(bsp),
-    sdktrace.WithResource(res),
+  shutdownFunc, err := otelUtil.Setup(
+    otelUtil.SetupParameter{
+      Resources: []attribute.KeyValue{
+        semconv.ServiceName(constant.SERVICE_COMMAND_NAME),
+        semconv.ServiceVersion(constant.SERVICE_VERSION),
+        semconv.ServiceInstanceID(s.Identity())},
+      Options: []otlptracegrpc.Option{
+        otlptracegrpc.WithInsecure(),
+        otlptracegrpc.WithEndpoint(s.config.OTLPGRPCCollectorAddress)},
+      Collectors: []prometheus.Collector{
+        metrics,
+      },
+    },
   )
 
-  otel.SetTracerProvider(s.tracerProvider)
-  otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
-    propagation.TraceContext{}, propagation.Baggage{},
-  ))
-
-  return metrics, reg, nil
-}
-
-func (s *Server) grpcServerSetup() error {
-  // Log
-  s.logger = logger.GetGlobal()
-  zaplogger, ok := s.logger.(*logger.ZapLogger)
-  if !ok {
-    return errors.New("logger is not of expected type, expected zap")
-  }
-  zapLogger := log.ZapLogger(zaplogger.Internal)
-
-  metrics, reg, err := s.setupOtel()
   if err != nil {
-    return err
+    return nil, err
   }
+  s.shutdownFunc = shutdownFunc
 
   exemplarFromCtx := func(ctx context.Context) prometheus.Labels {
     if span := trace.SpanContextFromContext(ctx); span.IsSampled() {
@@ -142,11 +116,13 @@ func (s *Server) grpcServerSetup() error {
     }
     return nil
   }
+
   s.grpcServer = grpc.NewServer(
     grpc.StatsHandler(otelgrpc.NewServerHandler()), // tracing
     grpc.ChainUnaryInterceptor(
       recovery.UnaryServerInterceptor(),
       logging.UnaryServerInterceptor(zapLogger), // logging
+      metrics.UnaryServerInterceptor(promProv.WithExemplarFromContext(exemplarFromCtx)),
     ),
     grpc.ChainStreamInterceptor(
       recovery.StreamServerInterceptor(),
@@ -155,23 +131,7 @@ func (s *Server) grpcServerSetup() error {
     ),
   )
 
-  if sharedConf.IsDebug() {
-    reflection.Register(s.grpcServer)
-    reg.MustRegister(collectors.NewProcessCollector(collectors.ProcessCollectorOpts{}))
-    reg.MustRegister(collectors.NewGoCollector())
-  }
-
-  metrics.InitializeMetrics(s.grpcServer)
-  // Metric endpoint
-  mux := http.NewServeMux()
-  mux.Handle("/metrics", promhttp.HandlerFor(reg, promhttp.HandlerOpts{
-    Registry:          reg,
-    EnableOpenMetrics: true,
-  }))
-
-  s.metricServer = &http.Server{Handler: mux, Addr: s.config.MetricAddress()}
-
-  return nil
+  return metrics, nil
 }
 
 func (s *Server) databaseSetup() error {
@@ -190,31 +150,12 @@ func (s *Server) databaseSetup() error {
   return nil
 }
 
-func (s *Server) createKafkaConfig() (*sarama.Config, error) {
-  conf := sarama.NewConfig()
-  if s.config.KafkaVersion != "" {
-    var err error
-    conf.Version, err = sarama.ParseKafkaVersion(s.config.KafkaVersion)
-    if err != nil {
-      return nil, err
-    }
-  } else {
-    conf.Version = constant.DefaultKafkaVersion
-  }
-  return conf, nil
-}
-
 func (s *Server) consumerSetup() error {
-  consumerCfg, err := s.createKafkaConfig()
-  if err != nil {
-    return err
-  }
-  consumerCfg.Consumer.Return.Errors = true
-  consumerCfg.Consumer.Offsets.Initial = sarama.OffsetOldest
-  consumerCfg.Consumer.Offsets.AutoCommit.Enable = true
-  consumerCfg.Consumer.Offsets.AutoCommit.Interval = time.Second * 5
+  conf := kafka.DefaultConfig(s.config.Broker.KafkaVersion,
+    constant.DefaultKafkaVersion,
+    kafka.WithDefaultConsumerGroup(s.Identity()))
 
-  group, err := sarama.NewConsumerGroup(s.config.Addresses, s.config.GroupId, consumerCfg)
+  group, err := kafka.DefaultSyncGroupConsumer(s.config.Broker.Addresses, s.config.Broker.GroupId, conf)
   if err != nil {
     return err
   }
@@ -224,26 +165,25 @@ func (s *Server) consumerSetup() error {
 }
 
 func (s *Server) publisherSetup() error {
-  producerConf, err := s.createKafkaConfig()
-  if err != nil {
-    return err
-  }
-  producerConf.Producer.RequiredAcks = sarama.WaitForAll
-  producerConf.Producer.Return.Successes = true
+  cfg := kafka.DefaultConfig(s.config.Broker.KafkaVersion,
+    constant.DefaultKafkaVersion,
+    kafka.WithDefaultProducer(),
+  )
 
-  producer, err := sarama.NewSyncProducer(s.config.Addresses, producerConf)
+  producer, err := kafka.DefaultSyncProducer(s.config.Broker.Addresses, cfg)
   if err != nil {
     return err
   }
 
-  s.dlqPublisher = producer
+  s.dlqProducer = producer
   return nil
 }
 
 func (s *Server) setup() error {
   s.validationSetup()
 
-  if err := s.grpcServerSetup(); err != nil {
+  metrics, err := s.grpcServerSetup()
+  if err != nil {
     return err
   }
   if err := s.databaseSetup(); err != nil {
@@ -258,24 +198,24 @@ func (s *Server) setup() error {
   if err := s.publisherSetup(); err != nil {
     return err
   }
-  forwarder := kafka.NewForwarder(constant.CUSTOMER_DLQ_TOPIC, s.dlqPublisher)
+  forwarder := kafka.NewForwarder(constant.CustomerDlqTopic, s.dlqProducer)
 
   // Service
-  queryConsumerConfig := service.DefaultCustomerQueryConsumerConfig(custRepo)
+  queryConsumerConfig := service.DefaultCustomerQueryConsumerFactory(custRepo)
   queryConsumerSvc := service.NewCustomerQueryConsumer(queryConsumerConfig)
-  queryConfig := service.DefaultCustomerQueryConfig(custRepo)
+  queryConfig := service.DefaultCustomerQueryFactory(custRepo)
   querySvc := service.NewCustomerQuery(queryConfig)
 
   // Handler
   customerQueryHandler := consumer.NewCustomerQueryHandler(queryConsumerSvc)
 
   // Consumer
-  err := s.consumerSetup()
+  err = s.consumerSetup()
   if err != nil {
     return err
   }
   consumerDispatcher := dispatcher.NewQueryConsumerGroup(forwarder, customerQueryHandler, serde.JsonAnyDeserializer{})
-  consumerDispatcher.Run(context.Background(), s.consumer, constant.CUSTOMER_DOMAIN_EVENT_TOPIC)
+  consumerDispatcher.Run(context.Background(), s.consumer, constant.CustomerDomainEventTopic)
 
   // gRPC
   queryHandler := handler.NewCustomerQuery(querySvc)
@@ -285,6 +225,19 @@ func (s *Server) setup() error {
   healthHandler := health.NewServer()
   grpc_health_v1.RegisterHealthServer(s.grpcServer, healthHandler)
   healthHandler.SetServingStatus(constant.SERVICE_NAME, grpc_health_v1.HealthCheckResponse_SERVING)
+  healthHandler.SetServingStatus(constant.SERVICE_QUERY_NAME, grpc_health_v1.HealthCheckResponse_SERVING)
+
+  // Reflection
+  if sharedConf.IsDebug() {
+    reflection.Register(s.grpcServer)
+  }
+
+  metrics.InitializeMetrics(s.grpcServer)
+
+  // Metric HTTP
+  mux := http.NewServeMux()
+  mux.Handle("/metrics", promhttp.Handler())
+  s.metricServer = &http.Server{Handler: mux, Addr: s.config.MetricAddress()}
 
   return nil
 }
@@ -297,12 +250,7 @@ func (s *Server) shutdown() {
   s.wg.Wait()
 
   // OTEL
-  err := s.exporter.Shutdown(ctx)
-  if err != nil {
-    logger.Warn(err.Error())
-  }
-
-  if err := s.tracerProvider.Shutdown(ctx); err != nil {
+  if err := s.shutdownFunc(ctx); err != nil {
     logger.Warn(err.Error())
   }
 
@@ -312,12 +260,14 @@ func (s *Server) shutdown() {
   }
 
   // Kafka
-
   if err := s.consumer.Close(); err != nil {
     logger.Warn(err.Error())
   }
+  if err := s.dlqProducer.Close(); err != nil {
+    logger.Warn(err.Error())
+  }
 
-  logger.Info("QueryServer Stopped!")
+  logger.Infof("%s Stopped!", constant.SERVICE_QUERY_NAME)
 }
 
 func (s *Server) Run() error {

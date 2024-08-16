@@ -4,7 +4,7 @@ import (
   "github.com/arcorium/rashop/shared/types"
   "github.com/arcorium/rashop/shared/util/repo"
   "github.com/uptrace/bun"
-  "mini-shop/services/user/internal/domain/entity"
+  "rashop/services/customer/internal/domain/entity"
   "time"
 )
 

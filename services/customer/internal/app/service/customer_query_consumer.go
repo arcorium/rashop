@@ -3,9 +3,9 @@ package service
 import (
   "context"
   "github.com/arcorium/rashop/shared/status"
-  "mini-shop/services/user/internal/app/query/consumer"
-  "mini-shop/services/user/internal/domain/event"
-  "mini-shop/services/user/internal/domain/repository"
+  "rashop/services/customer/internal/app/query/consumer"
+  "rashop/services/customer/internal/domain/event"
+  "rashop/services/customer/internal/domain/repository"
 )
 
 type ICustomerQueryConsumer interface {
@@ -25,14 +25,14 @@ type ICustomerQueryConsumer interface {
   VoucherUpdatedV1(ctx context.Context, ev *event.CustomerVoucherUpdatedV1) status.Object
 }
 
-func NewCustomerQueryConsumer(config CustomerQueryConsumerConfig) ICustomerQueryConsumer {
+func NewCustomerQueryConsumer(config CustomerQueryConsumerFactory) ICustomerQueryConsumer {
   return &customerQueryConsumerService{
-    CustomerQueryConsumerConfig: config,
+    CustomerQueryConsumerFactory: config,
   }
 }
 
-func DefaultCustomerQueryConsumerConfig(repo repository.ICustomer) CustomerQueryConsumerConfig {
-  return CustomerQueryConsumerConfig{
+func DefaultCustomerQueryConsumerFactory(repo repository.ICustomer) CustomerQueryConsumerFactory {
+  return CustomerQueryConsumerFactory{
     AddressAdded:      consumer.NewCustomerAddressAddedConsumer(repo),
     AddressDeleted:    consumer.NewCustomerAddressDeletedConsumer(repo),
     AddressUpdated:    consumer.NewCustomerAddressUpdatedConsumer(repo),
@@ -50,7 +50,7 @@ func DefaultCustomerQueryConsumerConfig(repo repository.ICustomer) CustomerQuery
   }
 }
 
-type CustomerQueryConsumerConfig struct {
+type CustomerQueryConsumerFactory struct {
   AddressAdded      consumer.ICustomerAddressAddedConsumer
   AddressDeleted    consumer.ICustomerAddressDeletedConsumer
   AddressUpdated    consumer.ICustomerAddressUpdatedConsumer
@@ -68,7 +68,7 @@ type CustomerQueryConsumerConfig struct {
 }
 
 type customerQueryConsumerService struct {
-  CustomerQueryConsumerConfig
+  CustomerQueryConsumerFactory
 }
 
 func (c *customerQueryConsumerService) AddressAddedV1(ctx context.Context, ev *event.CustomerAddressAddedV1) status.Object {

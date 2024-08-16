@@ -2,9 +2,9 @@ package command
 
 import (
   "go.opentelemetry.io/otel/trace"
-  "mini-shop/services/user/internal/domain/repository"
-  "mini-shop/services/user/pkg/cqrs"
-  "mini-shop/services/user/pkg/tracer"
+  "rashop/services/customer/internal/domain/repository"
+  "rashop/services/customer/pkg/cqrs"
+  "rashop/services/customer/pkg/tracer"
 )
 
 func newBasicHandler(parameter *cqrs.CommonHandlerParameter, opts ...trace.TracerOption) basicHandler {

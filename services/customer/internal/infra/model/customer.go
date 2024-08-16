@@ -5,8 +5,8 @@ import (
   sharedUtil "github.com/arcorium/rashop/shared/util"
   "github.com/arcorium/rashop/shared/util/repo"
   "github.com/uptrace/bun"
-  "mini-shop/services/user/internal/domain/entity"
-  vob "mini-shop/services/user/internal/domain/valueobject"
+  "rashop/services/customer/internal/domain/entity"
+  vob "rashop/services/customer/internal/domain/valueobject"
 )
 
 type CustomerOption = repo.DataAccessModelMapOption[*entity.Customer, *Customer]

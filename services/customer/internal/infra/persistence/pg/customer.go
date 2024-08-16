@@ -3,16 +3,17 @@ package pg
 import (
   "context"
   algo "github.com/arcorium/rashop/shared/algorithm"
+  "github.com/arcorium/rashop/shared/logger"
   "github.com/arcorium/rashop/shared/types"
   sharedUtil "github.com/arcorium/rashop/shared/util"
   "github.com/arcorium/rashop/shared/util/repo"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
   "github.com/uptrace/bun"
   "go.opentelemetry.io/otel/trace"
-  "mini-shop/services/user/internal/domain/entity"
-  "mini-shop/services/user/internal/domain/repository"
-  "mini-shop/services/user/internal/infra/model"
-  "mini-shop/services/user/pkg/tracer"
+  "rashop/services/customer/internal/domain/entity"
+  "rashop/services/customer/internal/domain/repository"
+  "rashop/services/customer/internal/infra/model"
+  "rashop/services/customer/pkg/tracer"
 )
 
 func NewCustomer(db bun.IDB) repository.ICustomer {
@@ -85,28 +86,31 @@ func (c *customerRepository) addVouchers(ctx context.Context, db bun.IDB, vouche
 }
 
 func (c *customerRepository) Get(ctx context.Context, parameter repo.QueryParameter) (repo.PaginatedResult[entity.Customer], error) {
-  ctx, span := c.tracer.Start(ctx, "customerRepository.Get")
+  ctx, span := c.tracer.Start(ctx, "customerRepository.GetCustomers")
   defer span.End()
 
   var dbModels []model.Customer
   count, err := c.db.NewSelect().
     Model(&dbModels).
-    Relation("User").
+      Relation("User", func(query *bun.SelectQuery) *bun.SelectQuery {
+        return query.Order("created_at")
+      }).
     Relation("Vouchers").
     Relation("ShippingAddresses").
     Limit(int(parameter.Limit)).
     Offset(int(parameter.Offset)).
-    Order("u.username").
-    ScanAndCount(ctx, &dbModels)
+    //Order("u.username").
+    ScanAndCount(ctx)
 
-  res := repo.CheckPaginationResult(dbModels, count, err)
-  if res.IsError() {
-    spanUtil.RecordError(res.Err(), span)
-    return repo.NewPaginatedResult[entity.Customer](nil, uint64(count)), res.Err()
+  result := repo.CheckPaginationResult(dbModels, count, err)
+  if result.IsError() {
+    err = result.Err()
+    spanUtil.RecordError(err, span)
+    return repo.NewPaginatedResult[entity.Customer](nil, uint64(count)), err
   }
 
   entities, ierr := sharedUtil.CastSliceErrsP(dbModels, repo.ToDomainErr[*model.Customer, entity.Customer])
-  if !ierr.IsNil() || ierr.IsEmptySlice() {
+  if !ierr.IsNil() {
     spanUtil.RecordError(ierr, span)
     return repo.NewPaginatedResult[entity.Customer](nil, uint64(count)), ierr
   }
@@ -136,8 +140,9 @@ func (c *customerRepository) FindByIds(ctx context.Context, ids ...types.Id) ([]
 
   result := repo.CheckSliceResult(dbModels, err)
   if result.IsError() {
-    spanUtil.RecordError(result.Err(), span)
-    return nil, result.Err()
+    err = result.Err()
+    spanUtil.RecordError(err, span)
+    return nil, err
   }
 
   entities, ierr := sharedUtil.CastSliceErrsP(dbModels, repo.ToDomainErr[*model.Customer, entity.Customer])
@@ -243,6 +248,7 @@ func (c *customerRepository) Update(ctx context.Context, customer *entity.Custom
     }
     // Delete
     if ids := customer.ShippingAddresses.Deleted(); len(ids) > 0 {
+      logger.Infof("Deleting %v", ids)
       err := c.deleteAddresses(ctx, tx, customer.Id, ids...)
       if err != nil {
         return err
@@ -320,7 +326,7 @@ func (c *customerRepository) deleteAddresses(ctx context.Context, db bun.IDB, cu
     Where("user_id = ?", customerId.String())
 
   if len(addressIds) > 0 {
-    query = query.Where("id IN (?) ", customerId.String(), bun.In(ids))
+    query = query.Where("id IN (?) ", bun.In(ids))
   }
 
   res, err := query.Exec(ctx)
@@ -337,7 +343,7 @@ func (c *customerRepository) deleteVouchers(ctx context.Context, db bun.IDB, cus
     Where("user_id = ?", customerId.String())
 
   if len(voucherIds) > 0 {
-    query = query.Where("voucher_id IN (?) ", customerId.String(), bun.In(ids))
+    query = query.Where("voucher_id IN (?) ", bun.In(ids))
   }
 
   res, err := query.Exec(ctx)

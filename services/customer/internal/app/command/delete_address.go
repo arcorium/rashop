@@ -3,9 +3,10 @@ package command
 import (
   "context"
   "github.com/arcorium/rashop/shared/interfaces/handler"
+  "github.com/arcorium/rashop/shared/logger"
   "github.com/arcorium/rashop/shared/status"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type IDeleteCustomerAddressHandler interface {
@@ -26,7 +27,7 @@ func (a *deleteCustomerAddressHandler) Handle(ctx context.Context, cmd *DeleteCu
   ctx, span := a.tracer.Start(ctx, "deleteCustomerAddressHandler.Handle")
   defer span.End()
 
-  // Get aggregate
+  // GetCustomers aggregate
   customers, err := a.repo.FindByIds(ctx, cmd.CustomerId)
   if err != nil {
     spanUtil.RecordError(err, span)
@@ -47,6 +48,7 @@ func (a *deleteCustomerAddressHandler) Handle(ctx context.Context, cmd *DeleteCu
     return status.ErrBadRequest(err)
   }
 
+  logger.Infof("Here")
   // Update aggregate
   err = a.repo.Update(ctx, customer)
   if err != nil {
@@ -55,11 +57,11 @@ func (a *deleteCustomerAddressHandler) Handle(ctx context.Context, cmd *DeleteCu
   }
 
   // Forward all domain events
-  err = a.publisher.PublishAggregate(ctx, customer)
+  err = a.publisher.Publish(ctx, customer)
   if err != nil {
     spanUtil.RecordError(err, span)
     return status.ErrInternal(err)
   }
 
-  return status.Success()
+  return status.Succeed()
 }

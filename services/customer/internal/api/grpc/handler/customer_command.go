@@ -6,9 +6,9 @@ import (
   spanUtil "github.com/arcorium/rashop/shared/util/span"
   "go.opentelemetry.io/otel/trace"
   "google.golang.org/grpc"
-  "mini-shop/services/user/internal/api/grpc/mapper"
-  "mini-shop/services/user/internal/app/service"
-  "mini-shop/services/user/pkg/tracer"
+  "rashop/services/customer/internal/api/grpc/mapper"
+  "rashop/services/customer/internal/app/service"
+  "rashop/services/customer/pkg/tracer"
 )
 
 func NewCustomerCommand(svc service.ICustomerCommand) CustomerCommandHandler {

@@ -35,7 +35,7 @@ func (a *Address) RestorePreserved(fields *preservedAddressFields) {
 
 func ReorderAddresses(defaultId string, addresses []Address) []Address {
   // Put default address in front
-  if len(defaultId) == 0 {
+  if len(defaultId) == 0 || len(addresses) == 0 {
     return addresses
   }
   // Create new addresses without the default

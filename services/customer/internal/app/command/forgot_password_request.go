@@ -2,10 +2,11 @@ package command
 
 import (
   "context"
+  intev "github.com/arcorium/rashop/contract/integration/event"
   "github.com/arcorium/rashop/shared/interfaces/handler"
   "github.com/arcorium/rashop/shared/status"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type IForgotCustomerPasswordRequestHandler interface {
@@ -36,11 +37,14 @@ func (f *forgotCustomerPasswordRequestHandler) Handle(ctx context.Context, cmd *
   current := &customers[0]
   current.ForgotPasswordRequest()
 
-  err = f.publisher.PublishAggregate(ctx, current)
+  // add integration event
+  current.AddEvents(intev.NewCustomerResetPasswordRequestedV1(current.Id, current.Email, current.Name.User))
+
+  err = f.publisher.Publish(ctx, current)
   if err != nil {
     spanUtil.RecordError(err, span)
     return status.ErrInternal(err)
   }
 
-  return status.Success()
+  return status.Succeed()
 }

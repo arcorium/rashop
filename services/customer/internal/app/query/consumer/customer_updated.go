@@ -6,8 +6,8 @@ import (
   "github.com/arcorium/rashop/shared/status"
   "github.com/arcorium/rashop/shared/types"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/internal/domain/event"
-  "mini-shop/services/user/internal/domain/repository"
+  "rashop/services/customer/internal/domain/event"
+  "rashop/services/customer/internal/domain/repository"
 )
 
 type ICustomerUpdatedConsumer interface {
@@ -53,5 +53,5 @@ func (c *customerUpdatedConsumer) Handle(ctx context.Context, e *event.CustomerU
     return status.FromRepository(err)
   }
 
-  return status.Success()
+  return status.Succeed()
 }

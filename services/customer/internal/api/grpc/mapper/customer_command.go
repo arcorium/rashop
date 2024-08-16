@@ -5,7 +5,7 @@ import (
   sharedErr "github.com/arcorium/rashop/shared/errors"
   "github.com/arcorium/rashop/shared/types"
   "github.com/arcorium/rashop/shared/util"
-  "mini-shop/services/user/internal/app/command"
+  "rashop/services/customer/internal/app/command"
 )
 
 func ToAddCustomerAddressCommand(request *customerv1.AddCustomerAddressRequest) (command.AddCustomerAddressCommand, error) {

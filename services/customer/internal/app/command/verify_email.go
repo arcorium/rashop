@@ -6,7 +6,7 @@ import (
   "github.com/arcorium/rashop/shared/status"
   "github.com/arcorium/rashop/shared/types"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type IVerifyCustomerEmailHandler interface {
@@ -56,7 +56,7 @@ func (v *verifyCustomerEmail) Handle(ctx context.Context, cmd *VerifyCustomerEma
     return status.FromRepository(err)
   }
 
-  err = v.publisher.PublishAggregate(ctx, current)
+  err = v.publisher.Publish(ctx, current)
   if err != nil {
     spanUtil.RecordError(err, span)
     return status.ErrInternal(err)

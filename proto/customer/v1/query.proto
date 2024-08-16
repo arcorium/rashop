@@ -8,6 +8,7 @@ import "google/protobuf/timestamp.proto";
 import "customer/v1/message_query.proto";
 
 service CustomerQueryService {
+  rpc Get(GetCustomersRequest) returns (GetCustomerResponse);
   rpc FindByIds(FindCustomerByIdsRequest) returns (FindCustomerByIdsResponse);
   rpc FindAddresses(FindCustomerAddressesRequest) returns (FindCustomerAddressesResponse);
   rpc FindVouchers(FindCustomerVouchersRequest) returns (FindCustomerVouchersResponse);

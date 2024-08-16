@@ -5,8 +5,8 @@ import (
   "github.com/arcorium/rashop/shared/interfaces/handler"
   "github.com/arcorium/rashop/shared/status"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/internal/domain/event"
-  "mini-shop/services/user/internal/domain/repository"
+  "rashop/services/customer/internal/domain/event"
+  "rashop/services/customer/internal/domain/repository"
 )
 
 type ICustomerAddressAddedConsumer interface {

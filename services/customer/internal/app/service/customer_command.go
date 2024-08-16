@@ -4,8 +4,8 @@ import (
   "context"
   "github.com/arcorium/rashop/shared/status"
   "github.com/arcorium/rashop/shared/types"
-  "mini-shop/services/user/internal/app/command"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/internal/app/command"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type ICustomerCommand interface {
@@ -29,14 +29,14 @@ type ICustomerCommand interface {
   VerifyEmail(ctx context.Context, cmd *command.VerifyCustomerEmailCommand) status.Object
 }
 
-func NewCustomerCommand(config CustomerCommandConfig) ICustomerCommand {
+func NewCustomerCommand(config CustomerCommandFactory) ICustomerCommand {
   return &customerCommandService{
     i: config,
   }
 }
 
-func DefaultCustomerCommandConfig(parameter cqrs.CommonHandlerParameter) CustomerCommandConfig {
-  return CustomerCommandConfig{
+func DefaultCustomerCommandFactory(parameter cqrs.CommonHandlerParameter) CustomerCommandFactory {
+  return CustomerCommandFactory{
     AddAddress:        command.NewAddCustomerAddressHandler(parameter),
     AddVouchers:       command.NewAddCustomerVouchersHandler(parameter),
     Create:            command.NewCreateCustomerHandler(parameter),
@@ -58,7 +58,7 @@ func DefaultCustomerCommandConfig(parameter cqrs.CommonHandlerParameter) Custome
   }
 }
 
-type CustomerCommandConfig struct {
+type CustomerCommandFactory struct {
   AddAddress        command.IAddCustomerAddressHandler
   AddVouchers       command.IAddCustomerVouchersHandler
   Create            command.ICreateCustomerHandler
@@ -80,7 +80,7 @@ type CustomerCommandConfig struct {
 }
 
 type customerCommandService struct {
-  i CustomerCommandConfig
+  i CustomerCommandFactory
 }
 
 func (c *customerCommandService) AddAddress(ctx context.Context, cmd *command.AddCustomerAddressCommand) (types.Id, status.Object) {

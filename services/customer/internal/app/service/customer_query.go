@@ -2,40 +2,48 @@ package service
 
 import (
   "context"
+  sharedDto "github.com/arcorium/rashop/shared/dto"
   "github.com/arcorium/rashop/shared/status"
-  "mini-shop/services/user/internal/app/dto"
-  "mini-shop/services/user/internal/app/query"
-  "mini-shop/services/user/internal/domain/repository"
+  "rashop/services/customer/internal/app/dto"
+  "rashop/services/customer/internal/app/query"
+  "rashop/services/customer/internal/domain/repository"
 )
 
 type ICustomerQuery interface {
+  GetCustomers(ctx context.Context, input *query.GetCustomersQuery) (sharedDto.PagedElementResult[dto.CustomerResponseDTO], status.Object)
   GetCustomerByIds(ctx context.Context, input *query.GetCustomerByIdsQuery) ([]dto.CustomerResponseDTO, status.Object)
   GetCustomerAddresses(ctx context.Context, input *query.GetCustomerAddressesQuery) ([]dto.AddressResponseDTO, status.Object)
-  GetCustomerVouchers(ctx context.Context, vouchersQuery *query.GetCustomerVouchersQuery) ([]dto.VoucherResponseDTO, status.Object)
+  GetCustomerVouchers(ctx context.Context, input *query.GetCustomerVouchersQuery) ([]dto.VoucherResponseDTO, status.Object)
 }
 
-func NewCustomerQuery(config CustomerQueryConfig) ICustomerQuery {
+func NewCustomerQuery(config CustomerQueryFactory) ICustomerQuery {
   return &customerQueryService{
-    CustomerQueryConfig: config,
+    CustomerQueryFactory: config,
   }
 }
 
-func DefaultCustomerQueryConfig(repo repository.ICustomer) CustomerQueryConfig {
-  return CustomerQueryConfig{
+func DefaultCustomerQueryFactory(repo repository.ICustomer) CustomerQueryFactory {
+  return CustomerQueryFactory{
+    Get:          query.NewGetCustomersHandler(repo),
     GetById:      query.NewGetCustomerByIdHandler(repo),
     GetAddresses: query.NewGetCustomerAddresses(repo),
     GetVouchers:  query.NewGetCustomerVouchers(repo),
   }
 }
 
-type CustomerQueryConfig struct {
+type CustomerQueryFactory struct {
+  Get          query.IGetCustomersHandler
   GetById      query.IGetCustomerByIdsHandler
   GetAddresses query.IGetCustomerAddressesHandler
   GetVouchers  query.IGetCustomerVouchersHandler
 }
 
 type customerQueryService struct {
-  CustomerQueryConfig
+  CustomerQueryFactory
+}
+
+func (c *customerQueryService) GetCustomers(ctx context.Context, input *query.GetCustomersQuery) (sharedDto.PagedElementResult[dto.CustomerResponseDTO], status.Object) {
+  return c.Get.Handle(ctx, input)
 }
 
 func (c *customerQueryService) GetCustomerByIds(ctx context.Context, input *query.GetCustomerByIdsQuery) ([]dto.CustomerResponseDTO, status.Object) {

@@ -8,8 +8,9 @@ import (
   sharedUtil "github.com/arcorium/rashop/shared/util"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
   "go.opentelemetry.io/otel/trace"
-  "mini-shop/services/user/internal/domain/repository"
-  "mini-shop/services/user/pkg/tracer"
+  "rashop/services/customer/internal/domain/entity"
+  "rashop/services/customer/internal/domain/repository"
+  "rashop/services/customer/pkg/tracer"
 )
 
 func NewKafka(topic KafkaTopic, producer sarama.SyncProducer, serializer serde.ISerializer) repository.IMessagePublisher {
@@ -38,10 +39,6 @@ func (k *kafkaPublisher) Close() error {
   return k.producer.Close()
 }
 
-func (k *kafkaPublisher) GracefulShutdown(_ context.Context) error {
-  return k.Close()
-}
-
 func (k *kafkaPublisher) PublishEvents(ctx context.Context, events ...types.Event) error {
   ctx, span := k.tracer.Start(ctx, "kafkaPublisher.PublishEvents")
   defer span.End()
@@ -57,7 +54,7 @@ func (k *kafkaPublisher) PublishEvents(ctx context.Context, events ...types.Even
       return nil, err
     }
 
-    // Get key
+    // GetCustomers key
     var key sarama.Encoder
     keys, ok := event.Key()
     if ok {
@@ -95,9 +92,9 @@ func (k *kafkaPublisher) PublishEvents(ctx context.Context, events ...types.Even
   return nil
 }
 
-func (k *kafkaPublisher) PublishAggregate(ctx context.Context, aggregate types.Aggregate) error {
+func (k *kafkaPublisher) Publish(ctx context.Context, customer *entity.Customer) error {
   ctx, span := k.tracer.Start(ctx, "kafkaPublisher.PublishAggregate")
   defer span.End()
 
-  return k.PublishEvents(ctx, aggregate.Events()...)
+  return k.PublishEvents(ctx, customer.Events()...)
 }

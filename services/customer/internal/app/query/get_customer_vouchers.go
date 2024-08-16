@@ -7,10 +7,10 @@ import (
   sharedUtil "github.com/arcorium/rashop/shared/util"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
   "go.opentelemetry.io/otel/trace"
-  "mini-shop/services/user/internal/app/dto"
-  "mini-shop/services/user/internal/app/mapper"
-  "mini-shop/services/user/internal/domain/repository"
-  "mini-shop/services/user/pkg/tracer"
+  "rashop/services/customer/internal/app/dto"
+  "rashop/services/customer/internal/app/mapper"
+  "rashop/services/customer/internal/domain/repository"
+  "rashop/services/customer/pkg/tracer"
 )
 
 type IGetCustomerVouchersHandler interface {
@@ -41,5 +41,5 @@ func (g *getCustomerVouchers) Handle(ctx context.Context, query *GetCustomerVouc
 
   current := &customers[0]
   result := sharedUtil.CastSliceP(current.Vouchers.Elements(), mapper.ToVoucherResponseDTO)
-  return result, status.Success()
+  return result, status.Succeed()
 }

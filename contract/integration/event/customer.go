@@ -1,8 +1,17 @@
 package intev
 
 import (
-  "github.com/arcorium/rashop/contract/integration/topic"
   "github.com/arcorium/rashop/shared/types"
+)
+
+const (
+  CustomerCreatedEvent                    = "customer.created"
+  CustomerDisabledEvent                   = "customer.disabled"
+  CustomerEnabledEvent                    = "customer.enabled"
+  CustomerEmailUpdatedEvent               = "customer.email.updated"
+  CustomerPhotoUpdatedEvent               = "customer.photo.updated"
+  CustomerResetPasswordRequestedEvent     = "customer.reset-password.requested"
+  CustomerEmailVerificationRequestedEvent = "customer.email-verification.requested"
 )
 
 var _ types.Event = (*CustomerCreatedV1)(nil)
@@ -24,7 +33,7 @@ type CustomerCreatedV1 struct {
 }
 
 func (c *CustomerCreatedV1) EventName() string {
-  return inttopic.CUSTOMER_CREATED
+  return CustomerCreatedEvent
 }
 
 func (c *CustomerCreatedV1) Key() (string, bool) {
@@ -48,7 +57,7 @@ type CustomerEmailChangedV1 struct {
 }
 
 func (c *CustomerEmailChangedV1) EventName() string {
-  return inttopic.CUSTOMER_EMAIL_UPDATED
+  return CustomerEmailUpdatedEvent
 }
 
 func (c *CustomerEmailChangedV1) Key() (string, bool) {
@@ -74,9 +83,61 @@ type CustomerPhotoChangedV1 struct {
 }
 
 func (c *CustomerPhotoChangedV1) EventName() string {
-  return inttopic.CUSTOMER_PHOTO_UPDATED
+  return CustomerPhotoUpdatedEvent
 }
 
 func (c *CustomerPhotoChangedV1) Key() (string, bool) {
+  return c.CustomerId, true
+}
+
+var _ types.Event = (*CustomerResetPasswordRequestedV1)(nil)
+
+func NewCustomerResetPasswordRequestedV1(customerId types.Id, email types.Email, username string) *CustomerResetPasswordRequestedV1 {
+  return &CustomerResetPasswordRequestedV1{
+    IntegrationV1: NewV1(),
+    CustomerId:    customerId.String(),
+    Email:         email.String(),
+    Username:      username,
+  }
+}
+
+type CustomerResetPasswordRequestedV1 struct {
+  IntegrationV1
+  CustomerId string
+  Email      string
+  Username   string
+}
+
+func (c *CustomerResetPasswordRequestedV1) EventName() string {
+  return CustomerResetPasswordRequestedEvent
+}
+
+func (c *CustomerResetPasswordRequestedV1) Key() (string, bool) {
+  return c.CustomerId, true
+}
+
+var _ types.Event = (*CustomerEmailVerificationRequestedV1)(nil)
+
+func NewCustomerEmailVerificationRequestedV1(customerId types.Id, email types.Email, username string) *CustomerEmailVerificationRequestedV1 {
+  return &CustomerEmailVerificationRequestedV1{
+    IntegrationV1: NewV1(),
+    CustomerId:    customerId.String(),
+    Email:         email.String(),
+    Username:      username,
+  }
+}
+
+type CustomerEmailVerificationRequestedV1 struct {
+  IntegrationV1
+  CustomerId string
+  Email      string
+  Username   string
+}
+
+func (c *CustomerEmailVerificationRequestedV1) EventName() string {
+  return CustomerEmailVerificationRequestedEvent
+}
+
+func (c *CustomerEmailVerificationRequestedV1) Key() (string, bool) {
   return c.CustomerId, true
 }

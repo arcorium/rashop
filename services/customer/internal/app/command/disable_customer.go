@@ -5,7 +5,7 @@ import (
   "github.com/arcorium/rashop/shared/interfaces/handler"
   "github.com/arcorium/rashop/shared/status"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type IDisableCustomerHandler interface {
@@ -52,7 +52,7 @@ func (d *disableCustomerHandler) Handle(ctx context.Context, command *DisableCus
     return status.FromRepository(err)
   }
 
-  err = d.publisher.PublishAggregate(ctx, current)
+  err = d.publisher.Publish(ctx, current)
   if err != nil {
     spanUtil.RecordError(err, span)
     return status.ErrInternal(err)

@@ -1,6 +1,13 @@
 package query
 
-import "github.com/arcorium/rashop/shared/types"
+import (
+  sharedDto "github.com/arcorium/rashop/shared/dto"
+  "github.com/arcorium/rashop/shared/types"
+)
+
+type GetCustomersQuery struct {
+  sharedDto.PagedElementDTO
+}
 
 type GetCustomerByIdsQuery struct {
   CustomerIds []types.Id

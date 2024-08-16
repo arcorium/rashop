@@ -5,8 +5,8 @@ import (
   "github.com/arcorium/rashop/shared/status"
   "github.com/arcorium/rashop/shared/types"
   "go.opentelemetry.io/otel/trace"
-  "mini-shop/services/user/internal/domain/repository"
-  "mini-shop/services/user/pkg/tracer"
+  "rashop/services/customer/internal/domain/repository"
+  "rashop/services/customer/pkg/tracer"
 )
 
 func newBasicHandler(repo repository.ICustomer, opts ...trace.TracerOption) commonHandlerField {
@@ -30,7 +30,7 @@ func HandleSimple[E types.Event](ctx context.Context, customerId string, repo re
     return status.ErrInternal(err)
   }
 
-  // Get the aggregate based on the id
+  // GetCustomers the aggregate based on the id
   customers, err := repo.FindByIds(ctx, custId)
   if err != nil {
     return status.FromRepository(err)
@@ -50,5 +50,5 @@ func HandleSimple[E types.Event](ctx context.Context, customerId string, repo re
   }
 
   // All consumer will only return status.SUCCESS
-  return status.Success()
+  return status.Succeed()
 }

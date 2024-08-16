@@ -5,7 +5,7 @@ import (
   "github.com/arcorium/rashop/shared/interfaces/handler"
   "github.com/arcorium/rashop/shared/status"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type IAddCustomerVouchersHandler interface {
@@ -27,7 +27,7 @@ func (a *addCustomerVoucherHandler) Handle(ctx context.Context, cmd *AddCustomer
   defer span.End()
 
   voucher := cmd.ToDomain()
-  // Get aggregate
+  // GetCustomers aggregate
   customers, err := a.repo.FindByIds(ctx, cmd.CustomerId)
   if err != nil {
     spanUtil.RecordError(err, span)
@@ -56,11 +56,11 @@ func (a *addCustomerVoucherHandler) Handle(ctx context.Context, cmd *AddCustomer
   }
 
   // Forward all domain events
-  err = a.publisher.PublishAggregate(ctx, customer)
+  err = a.publisher.Publish(ctx, customer)
   if err != nil {
     spanUtil.RecordError(err, span)
     return status.ErrInternal(err)
   }
 
-  return status.Success()
+  return status.Succeed()
 }

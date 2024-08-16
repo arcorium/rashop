@@ -1,14 +1,14 @@
 root = "."
-tmp_dir = "/tmp"
+#tmp_dir = "/tmp"
 
 [build]
 cmd = "GOFLAGS=-buildvcs=false go build -o /tmp/main ./cmd/query_server"
 bin = "/tmp/main"
-include_ext = ["env", "go", "mod", "sum", "tpl", "tmpl"]
+include_ext = ["go", "mod", "sum", "tpl", "tmpl"]
 exclude_dir = ["docker", "cmd/command_server", "test", "internal/app/command"]
 send_interrupt = true
 #rerun = true
-rerun_delay = 1000
+#rerun_delay = 1000
 stop_on_error = true
 
 [misc]

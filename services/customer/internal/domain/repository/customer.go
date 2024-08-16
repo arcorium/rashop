@@ -4,7 +4,7 @@ import (
   "context"
   "github.com/arcorium/rashop/shared/types"
   "github.com/arcorium/rashop/shared/util/repo"
-  "mini-shop/services/user/internal/domain/entity"
+  "rashop/services/customer/internal/domain/entity"
 )
 
 type ICustomer interface {

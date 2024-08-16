@@ -5,7 +5,7 @@ import (
   "github.com/arcorium/rashop/shared/database"
   "github.com/arcorium/rashop/shared/env"
   "log"
-  "mini-shop/services/user/internal/infra/model"
+  "rashop/services/customer/internal/infra/model"
 )
 
 func main() {

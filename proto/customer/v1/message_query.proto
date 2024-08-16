@@ -2,7 +2,17 @@ syntax = "proto3";
 package rashop.customer.v1;
 option go_package = "rashop/proto/gen/go/customer/v1";
 
-import "customer/v1/customer_message.proto";
+import "customer/v1/message.proto";
+import "common/paged.proto";
+
+message GetCustomersRequest {
+  common.PagedElementRequest detail = 1;
+}
+
+message GetCustomerResponse {
+  repeated Customer customers = 1;
+  common.PagedElementResponseDetail detail = 2;
+}
 
 message FindCustomerByIdsRequest {
   repeated string customer_ids = 1;

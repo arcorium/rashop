@@ -1,7 +1,7 @@
 package cqrs
 
 import (
-  "mini-shop/services/user/internal/domain/repository"
+  "rashop/services/customer/internal/domain/repository"
 )
 
 type CommonHandlerParameter struct {

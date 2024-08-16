@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             (unknown)
-// source: customer/v1/customer_command.proto
+// source: customer/v1/command.proto
 
 package customerv1
 
@@ -772,5 +772,5 @@ var CustomerCommandService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "customer/v1/customer_command.proto",
+	Metadata: "customer/v1/command.proto",
 }

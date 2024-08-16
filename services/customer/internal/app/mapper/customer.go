@@ -2,8 +2,8 @@ package mapper
 
 import (
   sharedUtil "github.com/arcorium/rashop/shared/util"
-  "mini-shop/services/user/internal/app/dto"
-  "mini-shop/services/user/internal/domain/entity"
+  "rashop/services/customer/internal/app/dto"
+  "rashop/services/customer/internal/domain/entity"
 )
 
 func ToCustomerResponseDTO(customer *entity.Customer) dto.CustomerResponseDTO {

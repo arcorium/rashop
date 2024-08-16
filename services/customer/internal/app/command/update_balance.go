@@ -6,7 +6,7 @@ import (
   "github.com/arcorium/rashop/shared/status"
   "github.com/arcorium/rashop/shared/types"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type IUpdateCustomerBalanceHandler interface {
@@ -54,7 +54,7 @@ func (u *updateCustomerBalanceHandler) Handle(ctx context.Context, cmd *UpdateCu
     return status.FromRepository(err)
   }
 
-  err = u.publisher.PublishAggregate(ctx, current)
+  err = u.publisher.Publish(ctx, current)
   if err != nil {
     spanUtil.RecordError(err, span)
     return status.ErrInternal(err)

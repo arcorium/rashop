@@ -2,7 +2,7 @@ package command
 
 import (
   "github.com/arcorium/rashop/shared/types"
-  "mini-shop/services/user/internal/domain/entity"
+  "rashop/services/customer/internal/domain/entity"
   "time"
 )
 

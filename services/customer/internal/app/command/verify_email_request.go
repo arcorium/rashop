@@ -2,10 +2,11 @@ package command
 
 import (
   "context"
+  intev "github.com/arcorium/rashop/contract/integration/event"
   "github.com/arcorium/rashop/shared/interfaces/handler"
   "github.com/arcorium/rashop/shared/status"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type IVerificationCustomerEmailRequestHandler interface {
@@ -38,12 +39,13 @@ func (f *verificationCustomerEmailRequestHandler) Handle(ctx context.Context, cm
   //TODO: Forward integration event
   // TODO: Token service should subscribe to those event
   // TODO: Email servic should subscirbe to token_created integrated event
+  current.AddEvents(intev.NewCustomerEmailVerificationRequestedV1(current.Id, current.Email, current.Name.User))
 
-  err = f.publisher.PublishAggregate(ctx, current)
+  err = f.publisher.Publish(ctx, current)
   if err != nil {
     spanUtil.RecordError(err, span)
     return status.ErrInternal(err)
   }
 
-  return status.Success()
+  return status.Succeed()
 }

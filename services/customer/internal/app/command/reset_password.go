@@ -6,7 +6,7 @@ import (
   "github.com/arcorium/rashop/shared/status"
   "github.com/arcorium/rashop/shared/types"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type IResetPasswordHandler interface {
@@ -56,7 +56,7 @@ func (r *resetPasswordHandler) Handle(ctx context.Context, cmd *ResetCustomerPas
     return status.FromRepository(err)
   }
 
-  err = r.publisher.PublishAggregate(ctx, current)
+  err = r.publisher.Publish(ctx, current)
   if err != nil {
     spanUtil.RecordError(err, span)
     return status.ErrInternal(err)

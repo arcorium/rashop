@@ -6,7 +6,7 @@ import (
   "github.com/arcorium/rashop/shared/status"
   "github.com/arcorium/rashop/shared/types"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/pkg/cqrs"
+  "rashop/services/customer/pkg/cqrs"
 )
 
 type IAddCustomerAddressHandler interface {
@@ -33,7 +33,7 @@ func (a *addCustomerAddressHandler) Handle(ctx context.Context, cmd *AddCustomer
     return types.NullId(), status.ErrInternal(err)
   }
 
-  // Get aggregate
+  // GetCustomers aggregate
   customers, err := a.repo.FindByIds(ctx, cmd.CustomerId)
   if err != nil {
     spanUtil.RecordError(err, span)
@@ -57,7 +57,7 @@ func (a *addCustomerAddressHandler) Handle(ctx context.Context, cmd *AddCustomer
   }
 
   // Forward all domain events
-  err = a.publisher.PublishAggregate(ctx, customer)
+  err = a.publisher.Publish(ctx, customer)
   if err != nil {
     spanUtil.RecordError(err, span)
     return types.NullId(), status.ErrInternal(err)

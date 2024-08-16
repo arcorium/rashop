@@ -6,10 +6,10 @@ import (
   "github.com/arcorium/rashop/shared/status"
   sharedUtil "github.com/arcorium/rashop/shared/util"
   "go.opentelemetry.io/otel/trace"
-  "mini-shop/services/user/internal/app/dto"
-  "mini-shop/services/user/internal/app/mapper"
-  "mini-shop/services/user/internal/domain/repository"
-  "mini-shop/services/user/pkg/tracer"
+  "rashop/services/customer/internal/app/dto"
+  "rashop/services/customer/internal/app/mapper"
+  "rashop/services/customer/internal/domain/repository"
+  "rashop/services/customer/pkg/tracer"
 )
 
 type IGetCustomerByIdsHandler interface {
@@ -39,5 +39,5 @@ func (h *getCustomerByIdsHandler) Handle(ctx context.Context, query *GetCustomer
   }
 
   resp := sharedUtil.CastSliceP(customers, mapper.ToCustomerResponseDTO)
-  return resp, status.Success()
+  return resp, status.Succeed()
 }

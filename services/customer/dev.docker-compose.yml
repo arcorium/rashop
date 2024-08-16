@@ -82,7 +82,9 @@ services:
   customer-command-migrate:
     build:
       context: ../../
-      dockerfile: services/customer/docker/migrate.Dockerfile
+      dockerfile: docker/migrate.Dockerfile
+      args:
+        SERVICE: customer
     restart: on-failure
     depends_on:
       customer-command-db:
@@ -96,7 +98,9 @@ services:
   customer-query-migrate:
     build:
       context: ../../
-      dockerfile: services/customer/docker/migrate.Dockerfile
+      dockerfile: docker/migrate.Dockerfile
+      args:
+        SERVICE: customer
     restart: on-failure
     depends_on:
       customer-query-db:
@@ -113,7 +117,7 @@ services:
       customer-command-migrate:
         condition: service_completed_successfully
     working_dir: /mini-shop/services/customer
-    command: ["-c", "./.command.air.toml"]
+    command: ["-c", "../../.command.air.toml"]
     environment:
       - PG_ADDRESS=customer-command-db
       - PG_USERNAME=rashop
@@ -132,7 +136,7 @@ services:
       customer-query-migrate:
         condition: service_completed_successfully
     working_dir: /mini-shop/services/customer
-    command: [ "-c", "./.query.air.toml" ]
+    command: [ "-c", "../../.query.air.toml" ]
     environment:
       - PG_ADDRESS=customer-query-db
       - PG_USERNAME=rashop

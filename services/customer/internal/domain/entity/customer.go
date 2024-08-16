@@ -6,8 +6,8 @@ import (
   algo "github.com/arcorium/rashop/shared/algorithm"
   "github.com/arcorium/rashop/shared/types"
   sharedUtil "github.com/arcorium/rashop/shared/util"
-  "mini-shop/services/user/internal/domain/event"
-  vob "mini-shop/services/user/internal/domain/valueobject"
+  "rashop/services/customer/internal/domain/event"
+  vob "rashop/services/customer/internal/domain/valueobject"
   "time"
 )
 
@@ -353,6 +353,7 @@ func (c *Customer) VerifyEmail() (types.Event, error) {
   return ev, nil
 }
 
+// TODO: Remove this, it is not needed
 func (c *Customer) EmailVerificationRequest() types.Event {
   ev := &event.CustomerEmailVerificationRequestedV1{
     DomainV1:   event.NewV1(),
@@ -364,6 +365,7 @@ func (c *Customer) EmailVerificationRequest() types.Event {
   return ev
 }
 
+// TODO: Remove this, it is not needed
 func (c *Customer) ForgotPasswordRequest() types.Event {
   ev := &event.CustomerForgotPasswordRequestedV1{
     DomainV1:   event.NewV1(),

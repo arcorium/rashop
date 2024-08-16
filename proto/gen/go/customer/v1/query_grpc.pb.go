@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.3.0
 // - protoc             (unknown)
-// source: customer/v1/customer_query.proto
+// source: customer/v1/query.proto
 
 package customerv1
 
@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
+	CustomerQueryService_Get_FullMethodName           = "/rashop.customer.v1.CustomerQueryService/Get"
 	CustomerQueryService_FindByIds_FullMethodName     = "/rashop.customer.v1.CustomerQueryService/FindByIds"
 	CustomerQueryService_FindAddresses_FullMethodName = "/rashop.customer.v1.CustomerQueryService/FindAddresses"
 	CustomerQueryService_FindVouchers_FullMethodName  = "/rashop.customer.v1.CustomerQueryService/FindVouchers"
@@ -28,6 +29,7 @@ const (
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type CustomerQueryServiceClient interface {
+	Get(ctx context.Context, in *GetCustomersRequest, opts ...grpc.CallOption) (*GetCustomerResponse, error)
 	FindByIds(ctx context.Context, in *FindCustomerByIdsRequest, opts ...grpc.CallOption) (*FindCustomerByIdsResponse, error)
 	FindAddresses(ctx context.Context, in *FindCustomerAddressesRequest, opts ...grpc.CallOption) (*FindCustomerAddressesResponse, error)
 	FindVouchers(ctx context.Context, in *FindCustomerVouchersRequest, opts ...grpc.CallOption) (*FindCustomerVouchersResponse, error)
@@ -39,6 +41,15 @@ type customerQueryServiceClient struct {
 
 func NewCustomerQueryServiceClient(cc grpc.ClientConnInterface) CustomerQueryServiceClient {
 	return &customerQueryServiceClient{cc}
+}
+
+func (c *customerQueryServiceClient) Get(ctx context.Context, in *GetCustomersRequest, opts ...grpc.CallOption) (*GetCustomerResponse, error) {
+	out := new(GetCustomerResponse)
+	err := c.cc.Invoke(ctx, CustomerQueryService_Get_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *customerQueryServiceClient) FindByIds(ctx context.Context, in *FindCustomerByIdsRequest, opts ...grpc.CallOption) (*FindCustomerByIdsResponse, error) {
@@ -72,6 +83,7 @@ func (c *customerQueryServiceClient) FindVouchers(ctx context.Context, in *FindC
 // All implementations must embed UnimplementedCustomerQueryServiceServer
 // for forward compatibility
 type CustomerQueryServiceServer interface {
+	Get(context.Context, *GetCustomersRequest) (*GetCustomerResponse, error)
 	FindByIds(context.Context, *FindCustomerByIdsRequest) (*FindCustomerByIdsResponse, error)
 	FindAddresses(context.Context, *FindCustomerAddressesRequest) (*FindCustomerAddressesResponse, error)
 	FindVouchers(context.Context, *FindCustomerVouchersRequest) (*FindCustomerVouchersResponse, error)
@@ -82,6 +94,9 @@ type CustomerQueryServiceServer interface {
 type UnimplementedCustomerQueryServiceServer struct {
 }
 
+func (UnimplementedCustomerQueryServiceServer) Get(context.Context, *GetCustomersRequest) (*GetCustomerResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
+}
 func (UnimplementedCustomerQueryServiceServer) FindByIds(context.Context, *FindCustomerByIdsRequest) (*FindCustomerByIdsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method FindByIds not implemented")
 }
@@ -102,6 +117,24 @@ type UnsafeCustomerQueryServiceServer interface {
 
 func RegisterCustomerQueryServiceServer(s grpc.ServiceRegistrar, srv CustomerQueryServiceServer) {
 	s.RegisterService(&CustomerQueryService_ServiceDesc, srv)
+}
+
+func _CustomerQueryService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCustomersRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CustomerQueryServiceServer).Get(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CustomerQueryService_Get_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CustomerQueryServiceServer).Get(ctx, req.(*GetCustomersRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _CustomerQueryService_FindByIds_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -166,6 +199,10 @@ var CustomerQueryService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*CustomerQueryServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "Get",
+			Handler:    _CustomerQueryService_Get_Handler,
+		},
+		{
 			MethodName: "FindByIds",
 			Handler:    _CustomerQueryService_FindByIds_Handler,
 		},
@@ -179,5 +216,5 @@ var CustomerQueryService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "customer/v1/customer_query.proto",
+	Metadata: "customer/v1/query.proto",
 }

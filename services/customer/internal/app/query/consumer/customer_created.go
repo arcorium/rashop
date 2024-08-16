@@ -5,9 +5,9 @@ import (
   "github.com/arcorium/rashop/shared/interfaces/handler"
   "github.com/arcorium/rashop/shared/status"
   spanUtil "github.com/arcorium/rashop/shared/util/span"
-  "mini-shop/services/user/internal/domain/entity"
-  "mini-shop/services/user/internal/domain/event"
-  "mini-shop/services/user/internal/domain/repository"
+  "rashop/services/customer/internal/domain/entity"
+  "rashop/services/customer/internal/domain/event"
+  "rashop/services/customer/internal/domain/repository"
 )
 
 type ICustomerCreatedConsumer interface {
@@ -41,5 +41,5 @@ func (c *customerCreatedConsumer) Handle(ctx context.Context, e *event.CustomerC
     return status.FromRepository(err)
   }
 
-  return status.Success()
+  return status.Created()
 }
