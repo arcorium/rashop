@@ -30,6 +30,10 @@ func (i IndicesError) IsNil() bool {
   return len(i.errs) == 0
 }
 
+func (i IndicesError) IsError() bool {
+  return len(i.errs) > 0
+}
+
 func (i IndicesError) Err() []IndexedError {
   return i.errs
 }

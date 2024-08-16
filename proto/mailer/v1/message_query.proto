@@ -1,0 +1,24 @@
+syntax = "proto3";
+package rashop.mailer.v1;
+option go_package = "rashop/proto/gen/go/mailer/v1";
+
+import "google/protobuf/timestamp.proto";
+import "common/paged.proto";
+import "mailer/v1/message.proto";
+
+message GetMailsRequest{
+  common.PagedElementRequest detail = 1;
+}
+
+message GetMailsResponse{
+  repeated Mail mails = 1;
+  common.PagedElementResponseDetail detail = 2;
+}
+
+message FindMailByIdsRequest {
+  repeated string mail_ids = 1;
+}
+
+message FindMailByIdsResponse {
+  repeated Mail mails = 1;
+}

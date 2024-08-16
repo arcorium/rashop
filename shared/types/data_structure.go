@@ -8,6 +8,10 @@ import (
 var ErrDuplicatedValue = errors.New("set: value duplicated")
 var ErrValueNotFound = errors.New("set: value not found")
 
+func NewSet[T comparable]() Set[T] {
+  return make(Set[T])
+}
+
 type Set[T comparable] map[T]struct{}
 
 func (s Set[T]) IsExist(val T) bool {

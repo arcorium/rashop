@@ -7,7 +7,7 @@ import (
 type Code uint
 
 const (
-  // Success Code
+  // Succeed Code
   SUCCESS Code = iota
   CREATED
   UPDATED
@@ -28,13 +28,13 @@ const (
   OBJECT_ALREADY_EXIST
 )
 
-// Success Code Helper
-func Success() Object {
+// Succeed Code Helper
+func Succeed() Object {
   return New(SUCCESS, nil)
 }
 
 func SomeSuccess() optional.Object[Object] {
-  return optional.Some(Success())
+  return optional.Some(Succeed())
 }
 
 func Created() Object {

@@ -127,3 +127,8 @@ func (b *EventBase[T, V]) ConstructEventBase(options ...EventOption[T, V]) {
 func NewEvent[T EventTyping, V EventVersioning](opts ...EventOption[T, V]) EventBase[T, V] {
   return EventBase[T, V]{eventBase: newEvent(opts...)}
 }
+
+func ConstructEventBase[E IEventBaseConstructable[T, V], T EventTyping, V EventVersioning](e E, id string, time time.Time) E {
+  e.ConstructEventBase(WithId[T, V](id), WithTime[T, V](time))
+  return e
+}

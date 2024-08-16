@@ -7,12 +7,14 @@ WORKDIR /app
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 
-COPY services/customer services/customer
+ARG SERVICE
+
+COPY services/${SERVICE} services/${SERVICE}
 COPY contract ./contract
 COPY proto ./proto
 COPY shared ./shared
 
-WORKDIR /app/services/customer
+WORKDIR /app/services/${SERVICE}
 
 RUN go mod tidy
 RUN go mod download

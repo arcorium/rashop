@@ -1,13 +1,9 @@
 package types
 
-import "github.com/arcorium/rashop/shared/errors"
-
 type Aggregate interface {
   Entity
   // AddEvents register event into aggregate
   AddEvents(events ...Event)
-  // ApplyEvents will apply func parameter into each event
-  ApplyEvents(events ...Event) errors.IndicesError
   // ApplyEvent will apply the event parameter into the object (object will be mutated)
   ApplyEvent(ev Event) error
   // Events get all registered events
@@ -15,27 +11,29 @@ type Aggregate interface {
 }
 
 type AggregateBase struct {
-  Aggregate
   events []Event
 }
 
-func (a AggregateBase) AddEvents(events ...Event) {
+func (a *AggregateBase) AddEvents(events ...Event) {
   a.events = append(a.events, events...)
 }
 
-func (a AggregateBase) ApplyEvents(events ...Event) errors.IndicesError {
-  var errs errors.IndicesError
-  for i, event := range events {
-    err := a.ApplyEvent(event)
-    if err != nil {
-      errs.Append(errors.NewIndex(i, err))
-    }
-  }
-  return errs
+func (a *AggregateBase) Events() []Event {
+  return a.events
 }
 
-func (a AggregateBase) Events() []Event {
-  return a.events
+// Clear events on the aggregate
+func (a *AggregateBase) Clear() {
+  a.events = nil
+}
+
+func newChildEntityHelper[ID comparable]() ChildEntityHelper[ID] {
+  return ChildEntityHelper[ID]{
+    updatedIndices: NewSet[int](),
+    deletedIndices: NewSet[ID](),
+    totalAdded:     0,
+    clear:          false,
+  }
 }
 
 // ChildEntityHelper to create helper for aggregate to determine what should be done for the child entities
@@ -43,6 +41,7 @@ type ChildEntityHelper[ID comparable] struct {
   updatedIndices Set[int]
   deletedIndices Set[ID]
   totalAdded     uint64
+  clear          bool
 }
 
 func (a *ChildEntityHelper[ID]) Update(idx int) {
@@ -59,6 +58,14 @@ func (a *ChildEntityHelper[ID]) Delete(idx ID) {
 
 func (a *ChildEntityHelper[ID]) Deleted() []ID {
   return a.deletedIndices.Values()
+}
+
+func (a *ChildEntityHelper[ID]) Clear() {
+  a.clear = true
+}
+
+func (a *ChildEntityHelper[ID]) Cleared() bool {
+  return a.clear
 }
 
 // Add delta into total added, when the delta is empty it will use 1
@@ -79,7 +86,7 @@ func (a *ChildEntityHelper[ID]) Added() uint64 {
 
 func NewChildEntityHelper[ID comparable, T any](val []T) ChildEntityHelperWithObject[ID, T] {
   return ChildEntityHelperWithObject[ID, T]{
-    ChildEntityHelper: ChildEntityHelper[ID]{},
+    ChildEntityHelper: newChildEntityHelper[ID](),
     Elm:               val,
   }
 }

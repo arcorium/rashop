@@ -7,12 +7,19 @@ WORKDIR /app
 ENV CGO_ENABLED=0
 ENV GOOS=linux
 
-COPY . .
+ARG SERVICE
+
+COPY services/${SERVICE} services/${SERVICE}
+COPY contract ./contract
+COPY proto ./proto
+COPY shared ./shared
+
+WORKDIR /app/services/${SERVICE}
 
 RUN go mod tidy
 RUN go mod download
 
-RUN go build -o build/server "./cmd/server/"
+RUN go build -o build/server "./cmd/query_server/"
 
 # Run tester
 FROM builder AS test-runner
@@ -29,10 +36,5 @@ WORKDIR /app
 RUN GRPC_HEALTH_PROBE_VERSION=v0.4.13 && \
     wget -qO/bin/grpc_health_probe https://github.com/grpc-ecosystem/grpc-health-probe/releases/download/${GRPC_HEALTH_PROBE_VERSION}/grpc_health_probe-linux-amd64 && \
     chmod +x /bin/grpc_health_probe
-
-# Grpc Server
-EXPOSE 8080
-# Metric Server
-EXPOSE 8081
 
 ENTRYPOINT ["./server"]

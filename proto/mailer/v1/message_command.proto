@@ -1,0 +1,36 @@
+syntax = "proto3";
+package rashop.mailer.v1;
+option go_package = "rashop/proto/gen/go/mailer/v1";
+
+import "google/protobuf/timestamp.proto";
+import "mailer/v1/message.proto";
+
+enum BodyType {
+  HTML = 0;
+  PLAIN = 1;
+}
+
+message SendMailRequest {
+  repeated string recipients = 1;
+  optional string sender = 2;
+  Tag tag = 3;
+  string subject = 4;
+  BodyType body_type = 5;
+  string body = 6;
+  repeated string embedded_media_ids = 7;
+  repeated string attachment_media_ids = 8; // Media should be deleted after processing either is is succeed or failed
+}
+
+message SendMailResponse {
+  string mail_id = 1;
+}
+
+// delete mails with start_time < time < until_time
+message DeleteMailRequest {
+  optional google.protobuf.Timestamp start_time = 1;
+  optional google.protobuf.Timestamp until_time = 2;
+}
+
+message DeleteMailResponse {
+  uint64 deleted_count = 1;
+}

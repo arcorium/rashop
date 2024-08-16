@@ -42,6 +42,18 @@ func CheckResult(result sql.Result, err error) error {
   return nil
 }
 
+func CheckCount(count int, err error) error {
+  if err != nil {
+    return checkPgDriverViolation(err)
+  }
+
+  if count == 0 {
+    return sql.ErrNoRows
+  }
+
+  return nil
+}
+
 // CheckResultWithSpan works like CheckResult, but it will record error for span
 func CheckResultWithSpan(result sql.Result, err error, span trace.Span) error {
   resultErr := CheckResult(result, err)

@@ -1,0 +1,10 @@
+syntax = "proto3";
+package rashop.mailer.v1;
+option go_package = "rashop/proto/gen/go/mailer/v1";
+
+import "mailer/v1/message_command.proto";
+
+service MailerCommandService {
+  rpc Send(SendMailRequest) returns (SendMailResponse);
+  rpc Delete(DeleteMailRequest) returns (DeleteMailResponse);
+}
