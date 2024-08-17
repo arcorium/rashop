@@ -104,3 +104,4 @@ go.work
 **/dev.env
 
 **/tmp/
+.idea/
