@@ -1,0 +1,23 @@
+syntax = "proto3";
+package rashop.media.v1;
+option go_package = "rashop/proto/gen/go/media/v1";
+
+import "google/protobuf/timestamp.proto";
+import "media_storage/v1/message.proto";
+
+message StoreMediaRequest {
+  string name = 1;
+  bool is_public = 2;
+  Usage usage = 3;
+  bytes media_chunk = 4;
+}
+
+message StoreMediaResponse {
+  string media_id = 1;
+}
+
+message DeleteMediaRequest {
+  repeated string media_ids = 1;
+}
+
+message DeleteMediaResponse {}

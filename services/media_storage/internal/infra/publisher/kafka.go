@@ -3,15 +3,15 @@ package publisher
 import (
   "context"
   "github.com/IBM/sarama"
+  "github.com/arcorium/rashop/services/media_storage/internal/domain/entity"
+  "github.com/arcorium/rashop/services/media_storage/internal/domain/repository"
+  "github.com/arcorium/rashop/services/media_storage/pkg/tracer"
   "github.com/arcorium/rashop/shared/messaging/kafka"
   "github.com/arcorium/rashop/shared/serde"
-  "rashop/services/customer/internal/domain/entity"
-  "rashop/services/customer/internal/domain/repository"
-  "rashop/services/customer/pkg/tracer"
 )
 
 func NewKafka(topic KafkaTopic, producer sarama.SyncProducer, serializer serde.ISerializer) repository.IMessagePublisher {
-  return &customerKafkaPublisher{
+  return &mediaKafkaPublisher{
     PublisherBase: kafka.NewPublisherBase(producer,
       serializer,
       tracer.Get(),
@@ -25,12 +25,12 @@ type KafkaTopic struct {
   IntegrationEvent string
 }
 
-type customerKafkaPublisher struct {
+type mediaKafkaPublisher struct {
   kafka.PublisherBase
 }
 
-func (k *customerKafkaPublisher) Publish(ctx context.Context, customer *entity.Customer) error {
-  ctx, span := k.Tracer.Start(ctx, "customerKafkaPublisher.PublishAggregate")
+func (k *mediaKafkaPublisher) Publish(ctx context.Context, customer *entity.Media) error {
+  ctx, span := k.Tracer.Start(ctx, "mediaKafkaPublisher.Publish")
   defer span.End()
 
   return k.PublishEvents(ctx, customer.Events()...)

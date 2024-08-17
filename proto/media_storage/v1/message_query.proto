@@ -1,0 +1,24 @@
+syntax = "proto3";
+package rashop.media.v1;
+option go_package = "rashop/proto/gen/go/media/v1";
+
+import "google/protobuf/timestamp.proto";
+import "common/paged.proto";
+import "media_storage/v1/message.proto";
+
+message GetMediaRequest{
+  string media_id = 1;
+}
+
+message GetMediaResponse{
+  string name = 1;
+  bytes media_chunk = 2;
+}
+
+message GetMediaMetadataRequest{
+  repeated string media_ids = 1;
+}
+
+message GetMediaMetadataResponse{
+  map<string, MediaMetadata> medias = 1;
+}

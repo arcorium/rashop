@@ -1,0 +1,10 @@
+syntax = "proto3";
+package rashop.media.v1;
+option go_package = "rashop/proto/gen/go/media/v1";
+
+import "media_storage/v1/message_command.proto";
+
+service MediaStorageCommandService {
+  rpc Store(stream StoreMediaRequest) returns(StoreMediaResponse);
+  rpc Delete(DeleteMediaRequest) returns(DeleteMediaResponse);
+}

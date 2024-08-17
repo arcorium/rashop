@@ -1,0 +1,10 @@
+syntax = "proto3";
+package rashop.media.v1;
+option go_package = "rashop/proto/gen/go/media/v1";
+
+import "media_storage/v1/message_query.proto";
+
+service MediaStorageQueryService {
+  rpc Get(GetMediaRequest) returns (stream GetMediaResponse);
+  rpc GetMetadata(GetMediaMetadataRequest) returns (GetMediaMetadataResponse);
+}

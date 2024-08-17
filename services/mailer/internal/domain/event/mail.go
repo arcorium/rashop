@@ -5,6 +5,12 @@ import (
   "time"
 )
 
+const (
+  MailerCreatedEvent       = "mail.created"
+  MailerStatusUpdatedEvent = "mail.updated"
+  MailerDeletedEvent       = "mail.deleted"
+)
+
 var _ types.Event = (*MailCreatedV1)(nil)
 
 type MailCreatedV1 struct {
