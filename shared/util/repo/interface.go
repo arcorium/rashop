@@ -5,27 +5,27 @@ import (
   "github.com/arcorium/rashop/shared/types"
 )
 
-type IGetRepository[D IDataAccessModelWithError[T], T any] interface {
+type IGetPersistent[D IDataAccessModelWithError[T], T any] interface {
   Get(ctx context.Context, parameter QueryParameter) (PaginatedResult[D], error)
 }
 
-type IFindByIdsRepository[D IDataAccessModelWithError[T], T any] interface {
+type IFindByIdsPersistent[D IDataAccessModelWithError[T], T any] interface {
   FindByIds(ctx context.Context, ids ...types.Id) ([]D, error)
 }
 
-type ICreateRepository[D IDataAccessModelWithError[T], T any] interface {
+type ICreatePersistent[D any] interface {
   Create(ctx context.Context, object D) error
 }
 
-type IUpdateRepository[D IDataAccessModelWithError[T], T any] interface {
+type IUpdatePersistent[D any] interface {
   Update(ctx context.Context, object D) error
 }
 
-type IDeleteRepository[D IDataAccessModelWithError[T], T any] interface {
+type IDeletePersistent interface {
   Delete(ctx context.Context, id types.Id) error
 }
 
-type IDeletesRepository[D IDataAccessModelWithError[T], T any] interface {
+type IDeletesPersistent interface {
   Deletes(ctx context.Context, ids ...types.Id) error
 }
 

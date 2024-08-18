@@ -1,0 +1,10 @@
+syntax = "proto3";
+package rashop.token.v1;
+option go_package = "rashop/proto/gen/go/token/v1";
+
+import "token/v1/command_message.proto";
+
+service TokenCommandService {
+  rpc Generate(GenerateTokenRequest) returns (GenerateTokenResponse);
+  rpc Validate(ValidateTokenRequest) returns (ValidateTokenResponse);
+}

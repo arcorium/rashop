@@ -8,7 +8,6 @@ gen.service:
 	mkdir services/$(service)/cmd/migrate
 	mkdir services/$(service)/config
 	mkdir services/$(service)/constant
-	mkdir services/$(service)/docker
 	mkdir services/$(service)/internal
 	mkdir services/$(service)/internal/api
 	mkdir services/$(service)/internal/api/grpc

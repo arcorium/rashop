@@ -1,0 +1,26 @@
+syntax = "proto3";
+package rashop.token.v1;
+option go_package = "rashop/proto/gen/go/token/v1";
+
+import "google/protobuf/timestamp.proto";
+
+enum TokenType {
+  String = 0;
+  PIN = 1;
+  AlphanumericPIN = 2;
+}
+
+enum TokenUsage {
+  EmailVerification = 0;
+  ResetPassword = 1;
+  Login = 2;
+  General = 3;
+}
+
+message Token {
+  string id = 1;
+  string token = 2;
+  TokenUsage usage = 3;
+  TokenType type = 4;
+  google.protobuf.Timestamp expired_at = 5;
+}

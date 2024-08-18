@@ -1,0 +1,24 @@
+syntax = "proto3";
+package rashop.token.v1;
+option go_package = "rashop/proto/gen/go/token/v1";
+
+import "token/v1/message.proto";
+import "google/protobuf/timestamp.proto";
+
+message GenerateTokenRequest {
+  string user_id = 1;
+  optional uint32 length = 2;
+  TokenType type = 3;
+  TokenUsage usage = 4;
+}
+
+message GenerateTokenResponse {
+  Token token = 1;
+}
+
+message ValidateTokenRequest {
+  string token = 1;
+  TokenUsage usage = 2;
+}
+
+message ValidateTokenResponse {}

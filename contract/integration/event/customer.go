@@ -40,27 +40,27 @@ func (c *CustomerCreatedV1) Key() (string, bool) {
   return c.CustomerId, true
 }
 
-var _ types.Event = (*CustomerEmailChangedV1)(nil)
+var _ types.Event = (*CustomerEmailUpdatedV1)(nil)
 
-func NewCustomerEmailChangedV1(customerId types.Id, newEmail types.Email) *CustomerEmailChangedV1 {
-  return &CustomerEmailChangedV1{
+func NewCustomerEmailChangedV1(customerId types.Id, newEmail types.Email) *CustomerEmailUpdatedV1 {
+  return &CustomerEmailUpdatedV1{
     IntegrationV1: NewV1(),
     CustomerId:    customerId.String(),
     NewEmail:      newEmail.String(),
   }
 }
 
-type CustomerEmailChangedV1 struct {
+type CustomerEmailUpdatedV1 struct {
   IntegrationV1
   CustomerId string
   NewEmail   string
 }
 
-func (c *CustomerEmailChangedV1) EventName() string {
+func (c *CustomerEmailUpdatedV1) EventName() string {
   return CustomerEmailUpdatedEvent
 }
 
-func (c *CustomerEmailChangedV1) Key() (string, bool) {
+func (c *CustomerEmailUpdatedV1) Key() (string, bool) {
   return c.CustomerId, true
 }
 
